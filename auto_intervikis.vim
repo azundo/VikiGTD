@@ -3,6 +3,8 @@ python << EOF
 import vim, os
 home_dir = os.path.expandvars('$HOME')
 projects_path = os.path.join(home_dir, 'Wikis', 'projects')
+if not os.path.exists(projects_path):
+    return
 projects_contents = os.listdir(projects_path)
 
 def is_valid_interviki(path):
