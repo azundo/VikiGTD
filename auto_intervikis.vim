@@ -21,3 +21,4 @@ for dir in project_dirs:
 EOF
 endfunction
 
+call s:AutoSetProjectInterVikis()
