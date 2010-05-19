@@ -4,7 +4,13 @@ import vim, os
 home_dir = os.path.expandvars('$HOME')
 projects_path = os.path.join(home_dir, 'Wikis', 'projects')
 projects_contents = os.listdir(projects_path)
-project_dirs = [entry for entry in projects_contents if os.path.isdir(os.path.join(projects_path, entry))]
+
+def is_valid_interviki(path):
+    """ Checks to make sure that the path is a directory and contains an
+        Index.viki.
+    """
+    return os.path.isdir(path) and os.path.exists(os.path.join(path, 'Index.viki'))
+project_dirs = [entry for entry in projects_contents if is_valid_interviki(os.path.join(projects_path, entry))]
 for dir in project_dirs:
     viki_name = dir.upper()
     # not using the projects_path here since it uses os specific path separator
