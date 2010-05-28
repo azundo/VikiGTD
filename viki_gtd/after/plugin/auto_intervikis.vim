@@ -25,7 +25,7 @@ def set_up_intervikis(projects_path):
         viki_suffix = 'let g:vikiInter%s_suffix = ".viki"' % viki_name
         # this command is what we really want at the end of the day - allows us
         # to type :PROJECTNAME and get the project index
-        viki_command = 'command -bang -nargs=? -complete=customlist,viki#EditComplete %s call viki#Edit(empty(<q-args>) ? "%s::Index" : viki#InterEditArg("%s", <q-args>), "<bang>")' % (viki_name, viki_name, viki_name)
+        viki_command = 'command -bang -nargs=? -complete=customlist,viki#EditComplete %s call viki#Edit(empty(<q-args>) ? "%s::Index" : viki#InterEditArg("%s", <q-args>), "<bang>")' % (dir, viki_name, viki_name)
         # execute the commands
         vim.command(viki_location)
         vim.command(viki_suffix)
@@ -35,3 +35,12 @@ EOF
 endfunction
 
 call s:AutoSetProjectInterVikis()
+
+function! s:GetSundayForWeek(weektime)
+    let offset = str2nr(strftime("%w", a:weektime))
+    return a:weektime - (offset * 24 * 60 * 60)
+endfunction
+
+" Set up some other helpful commands for habits app
+exec "command Today edit ".$HOME."/Wikis/habits/weeks/days/".strftime("%Y-%m-%d", localtime()).".viki"
+exec "command ThisWeek edit ".$HOME."/Wikis/habits/weeks/".strftime("%Y-%m-%d", s:GetSundayForWeek(localtime())).".viki"
