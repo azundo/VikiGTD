@@ -43,4 +43,6 @@ endfunction
 
 " Set up some other helpful commands for habits app
 exec "command Today edit ".$HOME."/Wikis/habits/weeks/days/".strftime("%Y-%m-%d", localtime()).".viki"
+exec "command Yesterday edit ".$HOME."/Wikis/habits/weeks/days/".strftime("%Y-%m-%d", localtime() - 24*60*60).".viki"
 exec "command ThisWeek edit ".$HOME."/Wikis/habits/weeks/".strftime("%Y-%m-%d", s:GetSundayForWeek(localtime())).".viki"
+exec "command LastWeek edit ".$HOME."/Wikis/habits/weeks/".strftime("%Y-%m-%d", s:GetSundayForWeek(localtime() - 7*24*60*60)).".viki"
