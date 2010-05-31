@@ -32,10 +32,13 @@ endfunction
 
 " Class: Todo {{{2
 "
-let s:Todo = {
-    \'text': "",
-    \'date': "",
-    \}
+let s:Todo = {}
+function! s:Todo.init() dict
+    let ret_val = copy(self)
+    let ret_val.text = ""
+    let ret_val.date = ""
+    return ret_val
+endfunction
 
 function! s:Todo.ParseLines(lines) dict
     let first_line = remove(a:lines, 0)
@@ -52,53 +55,72 @@ function! s:Todo.ParseLines(lines) dict
     endfor
 endfunction
 
-let s:TodoList = {
-    \'todos': [],
-    \}
+" Class: TodoList {{{2
 
-function! s:TodoList.AddTodo(lines) dict
-    let new_todo = copy(s:Todo)
-    call new_todo.ParseLines(a:lines)
-    call add(self.todos, new_todo)
+let s:TodoList = {}
+
+function! s:TodoList.init() dict
+    let ret_val = copy(self)
+    let ret_val.todos = []
+    return ret_val
 endfunction
 
-function! s:TodoList.ParseLines(file_lines) dict
-    " let last_line_indent = -1
+function! s:TodoList.AddTodo(lines) dict
+    if a:lines != []
+        let new_todo = s:Todo.init()
+        call new_todo.ParseLines(a:lines)
+        call add(self.todos, new_todo)
+    endif
+endfunction
+
+function! s:TodoList.ParseLines(lines) dict
     let lines_for_todo = []
-    for line in a:file_lines
+    " remove lines before the ** Todo
+    while match(a:lines[0], '^\*\*\s*Todo') == -1
+        call remove(a:lines, 0)
+    endwhile
+    " Remove the **Todo line
+    call remove(a:lines, 0)
+    let last_line_indent = -1
+    for line in a:lines
         let line_indent = s:Utils.LineIndent(line)
-        if line_indent == 0
-            continue
-        elseif line_indent == 4
-            " here we are at a new todo item
-            if len(lines_for_todo) > 0
-                " parse the old item if one exists
-                call self.AddTodo(lines_for_todo)
-                let lines_for_todo = []
+
+        if line_indent == 0 
+            if strlen(line) != 0
+                " break if we are at a line with an indent of 0 that is not
+                " empty
+                break
+            else
+                " continue if the line is just empty
+                continue
             endif
-            call add(lines_for_todo, line)
-        elseif line_indent == 6
-            " here we are continuing with an existing todo with multiple lines
-            call add(lines_for_todo, line)
         endif
+
+        if line_indent != last_line_indent + 2
+            " here we are at a new todo item, so add the old one
+            call self.AddTodo(lines_for_todo)
+            let lines_for_todo = []
+        endif
+        call add(lines_for_todo, line)
+        let last_line_indent = line_indent
     endfor
     " parse the final todo item after all lines have been gone through
     call self.AddTodo(lines_for_todo)
 endfunction
-
+" }}}
 " Tests {{{1
 " Test Todo {{{2
 let b:test_todo = copy(UnitTest)
 let b:test_todo.name = "TestTodo"
 
 function! b:test_todo.TestTodoCreation() dict
-    let todo = copy(s:Todo)
+    let todo = s:Todo.init()
     call self.AssertEquals(todo.text, "", "Basic todo should have empty text")
     call self.AssertEquals(todo.date, "", "Basic todo should have empty date")
 endfunction
 
 function! b:test_todo.TestParseTextOnlyTodo() dict
-    let todo = copy(s:Todo)
+    let todo = s:Todo.init()
     call todo.ParseLines(["    @ A todo with a single line.",])
     call self.AssertEquals(todo.text, 'A todo with a single line.', 'Test extracting text from a simple one line todo.')
     call todo.ParseLines(["    @ A todo with ", "      multiple lines."])
@@ -112,12 +134,21 @@ function! b:test_todolist.TestParseFile() dict
     let current_dir = s:Utils.GetCurrentDirectory()
     let test_file = current_dir . '/fixtures/standardTodo.txt'
     let lines = readfile(current_dir . '/fixtures/standardTodo.txt')
-    let new_todolist = copy(s:TodoList)
+    let new_todolist = s:TodoList.init()
     call new_todolist.ParseLines(lines)
     call self.AssertEquals(len(new_todolist.todos), 3, "TodoList should have three items.")
     call self.AssertEquals(new_todolist.todos[0].text, "A random item", "First todo item.")
     call self.AssertEquals(new_todolist.todos[1].text, "Another random item that is longer than a single line of text so we can parse this one properly", "Second todo item.")
     call self.AssertEquals(new_todolist.todos[2].text, "Somthing here", "Third todo item.")
+endfunction
+
+function! b:test_todolist.TestTougherFile() dict
+    let current_dir = s:Utils.GetCurrentDirectory()
+    let test_file = current_dir . '/fixtures/tougherTodo.txt'
+    let lines = readfile(current_dir . '/fixtures/tougherTodo.txt')
+    let new_todolist = s:TodoList.init()
+    call new_todolist.ParseLines(lines)
+    call self.AssertEquals(len(new_todolist.todos), 6, "TodoList should have three items.")
 endfunction
 
 let b:test_utils = copy(UnitTest)
@@ -146,4 +177,4 @@ call FunctionRegister.AddObject(s:TodoList, 'Todolist')
 
 " resetting cpo option
 let &cpo = s:save_cpo
-" im: foldmethod=marker
+" vim: foldmethod=marker
