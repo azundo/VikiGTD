@@ -139,6 +139,11 @@ function! b:TestAll()
     call b:test_utils.RunTests()
 endfunction
 
+" Add objects to FunctionRegister
+call FunctionRegister.AddObject(s:Utils, 'Utils')
+call FunctionRegister.AddObject(s:Todo, 'Todo')
+call FunctionRegister.AddObject(s:TodoList, 'Todolist')
+
 " resetting cpo option
 let &cpo = s:save_cpo
 " im: foldmethod=marker
