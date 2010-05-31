@@ -53,6 +53,7 @@ function! s:Todo.ParseLines(lines) dict
        let stripped_line = substitute(line, '^\s*', '', '')
        let self.text = self.text . stripped_line
     endfor
+    let self.date = matchstr(self.text, '\d\{4\}-\d\{2\}-\d\{2\}')
 endfunction
 
 " Class: TodoList {{{2
@@ -127,6 +128,13 @@ function! b:test_todo.TestParseTextOnlyTodo() dict
     call self.AssertEquals(todo.text, 'A todo with multiple lines.')
 endfunction
 
+function! b:test_todo.TestParseTextWithDate() dict
+    let todo = s:Todo.init()
+    call todo.ParseLines(["    @ A todo with a single line and date 2010-05-12",])
+    call self.AssertEquals(todo.date, "2010-05-12", "Simple date parsing.")
+endfunction
+
+" Test TodoList {{{2
 let b:test_todolist = copy(UnitTest)
 let b:test_todolist.name = "TestTodoList"
 
@@ -170,7 +178,7 @@ function! b:TestAll()
     call b:test_utils.RunTests()
 endfunction
 
-" Add objects to FunctionRegister
+" Add objects to FunctionRegister {{{1
 call FunctionRegister.AddObject(s:Utils, 'Utils')
 call FunctionRegister.AddObject(s:Todo, 'Todo')
 call FunctionRegister.AddObject(s:TodoList, 'Todolist')
