@@ -113,7 +113,12 @@ endfunction
 "
 "
 function! s:ScrapeProjectDir(directory)
-    let index_files = findfile('Index.viki', a:directory.'/**/', -1)
+    let index_files = findfile('Index.viki', a:directory.'/**/*', -1)
+    let standalone_projects = split(globpath(a:directory, '*.viki'), '\n')
+    " remove the projects/Index.viki
+    call filter(standalone_projects, 'v:val !~ "Index.viki"')
+    " Add the files together
+    let index_files = extend(index_files, standalone_projects)
     let todo_lists = []
     for filename in index_files
         let new_list = s:TodoList.init()
@@ -188,7 +193,7 @@ endfunction
 let b:test_scrape = UnitTest.init("TestScrape")
 function! b:test_scrape.TestBasicScrape() dict
     let todolists = s:ScrapeProjectDir(s:Utils.GetCurrentDirectory().'/fixtures/projects')
-    call self.AssertEquals(len(todolists), 2)
+    call self.AssertEquals(len(todolists), 4)
 endfunction
 
 " Easy function for testing all {{{2
