@@ -109,10 +109,22 @@ function! s:TodoList.ParseLines(lines) dict
     call self.AddTodo(lines_for_todo)
 endfunction
 " }}}
+" Functions {{{1
+"
+"
+function! s:ScrapeProjectDir(directory)
+    let index_files = findfile('Index.viki', a:directory.'/**/', -1)
+    let todo_lists = []
+    for filename in index_files
+        let new_list = s:TodoList.init()
+        call new_list.ParseLines(readfile(filename))
+        call add(todo_lists, new_list)
+    endfor
+    return todo_lists
+endfunction
 " Tests {{{1
 " Test Todo {{{2
-let b:test_todo = copy(UnitTest)
-let b:test_todo.name = "TestTodo"
+let b:test_todo = UnitTest.init("TestTodo")
 
 function! b:test_todo.TestTodoCreation() dict
     let todo = s:Todo.init()
@@ -135,8 +147,7 @@ function! b:test_todo.TestParseTextWithDate() dict
 endfunction
 
 " Test TodoList {{{2
-let b:test_todolist = copy(UnitTest)
-let b:test_todolist.name = "TestTodoList"
+let b:test_todolist = UnitTest.init("TestTodoList")
 
 function! b:test_todolist.TestParseFile() dict
     let current_dir = s:Utils.GetCurrentDirectory()
@@ -159,8 +170,7 @@ function! b:test_todolist.TestTougherFile() dict
     call self.AssertEquals(len(new_todolist.todos), 6, "TodoList should have three items.")
 endfunction
 
-let b:test_utils = copy(UnitTest)
-let b:test_utils.name = "TestUtils"
+let b:test_utils = UnitTest.init("TestUtils")
 function! b:test_utils.TestGetDirectory() dict
     let current_dir = s:Utils.GetCurrentDirectory()
     call self.AssertEquals(current_dir, '/home/benjamin/Code/vimscripts/viki_gtd/ftplugin', 'current_dir and path should be equal.') " Change this path when script is installed!
@@ -172,10 +182,21 @@ function! b:test_utils.TestLineIndent() dict
     call self.AssertEquals(s:Utils.LineIndent("\tA tab!"), 1, "A tab should return an indent of 1")
 endfunction
 
+
+" Test Project Scrape Functions {{{2
+"
+let b:test_scrape = UnitTest.init("TestScrape")
+function! b:test_scrape.TestBasicScrape() dict
+    let todolists = s:ScrapeProjectDir(s:Utils.GetCurrentDirectory().'/fixtures/projects')
+    call self.AssertEquals(len(todolists), 2)
+endfunction
+
+" Easy function for testing all {{{2
 function! b:TestAll()
     call b:test_todo.RunTests()
     call b:test_todolist.RunTests()
     call b:test_utils.RunTests()
+    call b:test_scrape.RunTests()
 endfunction
 
 " Add objects to FunctionRegister {{{1
