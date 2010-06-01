@@ -309,137 +309,139 @@ highlight DueTomorrow ctermbg=LightBlue
 call matchadd("DueTomorrow", strftime("%Y-%m-%d", localtime() + 24*60*60))
 
 " Tests {{{1
-" Test Todo {{{2
-let b:test_todo = UnitTest.init("TestTodo")
-
-function! b:test_todo.TestTodoCreation() dict
-    let todo = s:Todo.init()
-    call self.AssertEquals(todo.text, "", "Basic todo should have empty text")
-    call self.AssertEquals(todo.date, "", "Basic todo should have empty date")
-endfunction
-
-function! b:test_todo.TestParseTextOnlyTodo() dict
-    let todo = s:Todo.init()
-    call todo.ParseLines(["    @ A todo with a single line.",])
-    call self.AssertEquals(todo.text, 'A todo with a single line.', 'Test extracting text from a simple one line todo.')
-    call todo.ParseLines(["    @ A todo with ", "      multiple lines."])
-    call self.AssertEquals(todo.text, 'A todo with multiple lines.')
-endfunction
-
-function! b:test_todo.TestParseTextWithDate() dict
-    let todo = s:Todo.init()
-    call todo.ParseLines(["    @ A todo with a single line and date 2010-05-12",])
-    call self.AssertEquals(todo.date, "2010-05-12", "Simple date parsing.")
-endfunction
-
-" Test TodoList {{{2
-let b:test_todolist = UnitTest.init("TestTodoList")
-
-function! b:test_todolist.TestParseFile() dict "{{{3
-    let current_dir = s:Utils.GetCurrentDirectory()
-    let test_file = current_dir . '/fixtures/standardTodo.txt'
-    let lines = readfile(current_dir . '/fixtures/standardTodo.txt')
-    let new_todolist = s:TodoList.init()
-    call new_todolist.ParseLines(lines)
-    call self.AssertEquals(len(new_todolist.todos), 3, "TodoList should have three items.")
-    call self.AssertEquals(new_todolist.todos[0].text, "A random item", "First todo item.")
-    call self.AssertEquals(new_todolist.todos[1].text, "Another random item that is longer than a single line of text so we can parse this one properly", "Second todo item.")
-    call self.AssertEquals(new_todolist.todos[2].text, "Somthing here", "Third todo item.")
-endfunction
-
-function! b:test_todolist.TestTougherFile() dict "{{{3
-    let current_dir = s:Utils.GetCurrentDirectory()
-    let test_file = current_dir . '/fixtures/tougherTodo.txt'
-    let lines = readfile(current_dir . '/fixtures/tougherTodo.txt')
-    let new_todolist = s:TodoList.init()
-    call new_todolist.ParseLines(lines)
-    call self.AssertEquals(len(new_todolist.todos), 6, "TodoList should have three items.")
-    call self.AssertEquals(new_todolist.todos[3].parent, new_todolist.todos[2])
-    call self.AssertEquals(new_todolist.todos[0].parent, {})
-    call self.AssertEquals(new_todolist.todos[1].parent, {})
-    call self.AssertEquals(new_todolist.todos[2].parent, {})
-    call self.AssertEquals(new_todolist.todos[4].parent, {})
-    call self.AssertEquals(new_todolist.todos[5].parent, {})
-    call self.AssertEquals(new_todolist.todos[2].children[0], new_todolist.todos[3])
-endfunction
-
-function! b:test_todolist.TestDateFilter() dict "{{{3
-    " ok, parsing some files here which is not really unit-testy, but I'm not
-    " about to write a whole json fixture parser or anything like that
-    let current_dir = s:Utils.GetCurrentDirectory()
-    let test_file = current_dir . '/fixtures/datedTodos.txt'
-    let lines = readfile(current_dir . '/fixtures/datedTodos.txt')
-    let new_todolist = s:TodoList.init()
-    call new_todolist.ParseLines(lines)
-
-    let filtered_todos = new_todolist.FilterByDate('0000-00-00', '9999-99-99')
-    call self.AssertEquals(10, len(filtered_todos.todos))
-
-    let filtered_todos = new_todolist.FilterByDate('2010-01-01', '2010-01-31')
-    call self.AssertEquals(7, len(filtered_todos.todos))
-
-    let filtered_todos = new_todolist.FilterByDate('2010-01-01', '2010-01-03')
-    call self.AssertEquals(3, len(filtered_todos.todos))
-endfunction
-
-function! b:test_todolist.TestPrinting() dict "{{{3
-    " ok, parsing some files here which is not really unit-testy, but I'm not
-    " about to write a whole json fixture parser or anything like that
-    let current_dir = s:Utils.GetCurrentDirectory()
-    let lines = readfile(current_dir . '/fixtures/tougherTodo.txt')
-    let new_todolist = s:TodoList.init()
-    call new_todolist.ParseLines(lines)
-    " echo new_todolist.Print()
-    " echo new_todolist.Print(1)
-
-    " let filtered_todos = new_todolist.FilterByDate('2010-01-01', '2010-01-31')
-    " call self.AssertEquals(7, len(filtered_todos.todos))
-endfunction
-
-" Test Utils {{{2
-let b:test_utils = UnitTest.init("TestUtils")
-function! b:test_utils.TestGetDirectory() dict
-    let current_dir = s:Utils.GetCurrentDirectory()
-    call self.AssertEquals(current_dir, '/home/benjamin/Code/vimscripts/viki_gtd/ftplugin', 'current_dir and path should be equal.') " Change this path when script is installed!
-endfunction
-
-function! b:test_utils.TestLineIndent() dict
-    call self.AssertEquals(s:Utils.LineIndent("    Four spaces."), 4, "Four spaces should return an indent of 4")
-    call self.AssertEquals(s:Utils.LineIndent("No spaces"), 0, "No spaces should return an indent of 0")
-    call self.AssertEquals(s:Utils.LineIndent("\tA tab!"), 1, "A tab should return an indent of 1")
-endfunction
-
-function! b:test_utils.TestCompareDates() dict
-    call self.AssertEquals(1, s:Utils.CompareDates("2010-08-05", "2010-08-04"))
-    call self.AssertEquals(0, s:Utils.CompareDates("2010-08-05", "2010-08-05"))
-    call self.AssertEquals(-1, s:Utils.CompareDates("2010-08-05", "2010-08-06"))
-endfunction
-
-function! b:test_utils.TestRemoveDuplicates() dict
-    call self.AssertEquals([1, 2, 3], s:Utils.RemoveDuplicates([1, 2, 1, 2, 1, 3, 1, 2, 3, 3, 2, 1]))
-endfunction
-
-
-" Test Project Scrape Functions {{{2
-"
-let b:test_scrape = UnitTest.init("TestScrape")
-function! b:test_scrape.TestBasicScrape() dict
-    let todolists = s:ScrapeProjectDir(s:Utils.GetCurrentDirectory().'/fixtures/projects')
-    call self.AssertEquals(len(todolists), 4)
-endfunction
-
-" Easy function for testing all {{{2
-function! b:TestAll()
-    call b:test_todo.RunTests()
-    call b:test_todolist.RunTests()
-    call b:test_utils.RunTests()
-    call b:test_scrape.RunTests()
-endfunction
-
-" Add objects to FunctionRegister {{{1
-call FunctionRegister.AddObject(s:Utils, 'Utils')
-call FunctionRegister.AddObject(s:Todo, 'Todo')
-call FunctionRegister.AddObject(s:TodoList, 'Todolist')
+if exists('UnitTest')
+    " Test Todo {{{2
+    let b:test_todo = UnitTest.init("TestTodo")
+    
+    function! b:test_todo.TestTodoCreation() dict
+        let todo = s:Todo.init()
+        call self.AssertEquals(todo.text, "", "Basic todo should have empty text")
+        call self.AssertEquals(todo.date, "", "Basic todo should have empty date")
+    endfunction
+    
+    function! b:test_todo.TestParseTextOnlyTodo() dict
+        let todo = s:Todo.init()
+        call todo.ParseLines(["    @ A todo with a single line.",])
+        call self.AssertEquals(todo.text, 'A todo with a single line.', 'Test extracting text from a simple one line todo.')
+        call todo.ParseLines(["    @ A todo with ", "      multiple lines."])
+        call self.AssertEquals(todo.text, 'A todo with multiple lines.')
+    endfunction
+    
+    function! b:test_todo.TestParseTextWithDate() dict
+        let todo = s:Todo.init()
+        call todo.ParseLines(["    @ A todo with a single line and date 2010-05-12",])
+        call self.AssertEquals(todo.date, "2010-05-12", "Simple date parsing.")
+    endfunction
+    
+    " Test TodoList {{{2
+    let b:test_todolist = UnitTest.init("TestTodoList")
+    
+    function! b:test_todolist.TestParseFile() dict "{{{3
+        let current_dir = s:Utils.GetCurrentDirectory()
+        let test_file = current_dir . '/fixtures/standardTodo.txt'
+        let lines = readfile(current_dir . '/fixtures/standardTodo.txt')
+        let new_todolist = s:TodoList.init()
+        call new_todolist.ParseLines(lines)
+        call self.AssertEquals(len(new_todolist.todos), 3, "TodoList should have three items.")
+        call self.AssertEquals(new_todolist.todos[0].text, "A random item", "First todo item.")
+        call self.AssertEquals(new_todolist.todos[1].text, "Another random item that is longer than a single line of text so we can parse this one properly", "Second todo item.")
+        call self.AssertEquals(new_todolist.todos[2].text, "Somthing here", "Third todo item.")
+    endfunction
+    
+    function! b:test_todolist.TestTougherFile() dict "{{{3
+        let current_dir = s:Utils.GetCurrentDirectory()
+        let test_file = current_dir . '/fixtures/tougherTodo.txt'
+        let lines = readfile(current_dir . '/fixtures/tougherTodo.txt')
+        let new_todolist = s:TodoList.init()
+        call new_todolist.ParseLines(lines)
+        call self.AssertEquals(len(new_todolist.todos), 6, "TodoList should have three items.")
+        call self.AssertEquals(new_todolist.todos[3].parent, new_todolist.todos[2])
+        call self.AssertEquals(new_todolist.todos[0].parent, {})
+        call self.AssertEquals(new_todolist.todos[1].parent, {})
+        call self.AssertEquals(new_todolist.todos[2].parent, {})
+        call self.AssertEquals(new_todolist.todos[4].parent, {})
+        call self.AssertEquals(new_todolist.todos[5].parent, {})
+        call self.AssertEquals(new_todolist.todos[2].children[0], new_todolist.todos[3])
+    endfunction
+    
+    function! b:test_todolist.TestDateFilter() dict "{{{3
+        " ok, parsing some files here which is not really unit-testy, but I'm not
+        " about to write a whole json fixture parser or anything like that
+        let current_dir = s:Utils.GetCurrentDirectory()
+        let test_file = current_dir . '/fixtures/datedTodos.txt'
+        let lines = readfile(current_dir . '/fixtures/datedTodos.txt')
+        let new_todolist = s:TodoList.init()
+        call new_todolist.ParseLines(lines)
+    
+        let filtered_todos = new_todolist.FilterByDate('0000-00-00', '9999-99-99')
+        call self.AssertEquals(10, len(filtered_todos.todos))
+    
+        let filtered_todos = new_todolist.FilterByDate('2010-01-01', '2010-01-31')
+        call self.AssertEquals(7, len(filtered_todos.todos))
+    
+        let filtered_todos = new_todolist.FilterByDate('2010-01-01', '2010-01-03')
+        call self.AssertEquals(3, len(filtered_todos.todos))
+    endfunction
+    
+    function! b:test_todolist.TestPrinting() dict "{{{3
+        " ok, parsing some files here which is not really unit-testy, but I'm not
+        " about to write a whole json fixture parser or anything like that
+        let current_dir = s:Utils.GetCurrentDirectory()
+        let lines = readfile(current_dir . '/fixtures/tougherTodo.txt')
+        let new_todolist = s:TodoList.init()
+        call new_todolist.ParseLines(lines)
+        " echo new_todolist.Print()
+        " echo new_todolist.Print(1)
+    
+        " let filtered_todos = new_todolist.FilterByDate('2010-01-01', '2010-01-31')
+        " call self.AssertEquals(7, len(filtered_todos.todos))
+    endfunction
+    
+    " Test Utils {{{2
+    let b:test_utils = UnitTest.init("TestUtils")
+    function! b:test_utils.TestGetDirectory() dict
+        let current_dir = s:Utils.GetCurrentDirectory()
+        call self.AssertEquals(current_dir, '/home/benjamin/Code/vimscripts/viki_gtd/ftplugin', 'current_dir and path should be equal.') " Change this path when script is installed!
+    endfunction
+    
+    function! b:test_utils.TestLineIndent() dict
+        call self.AssertEquals(s:Utils.LineIndent("    Four spaces."), 4, "Four spaces should return an indent of 4")
+        call self.AssertEquals(s:Utils.LineIndent("No spaces"), 0, "No spaces should return an indent of 0")
+        call self.AssertEquals(s:Utils.LineIndent("\tA tab!"), 1, "A tab should return an indent of 1")
+    endfunction
+    
+    function! b:test_utils.TestCompareDates() dict
+        call self.AssertEquals(1, s:Utils.CompareDates("2010-08-05", "2010-08-04"))
+        call self.AssertEquals(0, s:Utils.CompareDates("2010-08-05", "2010-08-05"))
+        call self.AssertEquals(-1, s:Utils.CompareDates("2010-08-05", "2010-08-06"))
+    endfunction
+    
+    function! b:test_utils.TestRemoveDuplicates() dict
+        call self.AssertEquals([1, 2, 3], s:Utils.RemoveDuplicates([1, 2, 1, 2, 1, 3, 1, 2, 3, 3, 2, 1]))
+    endfunction
+    
+    
+    " Test Project Scrape Functions {{{2
+    "
+    let b:test_scrape = UnitTest.init("TestScrape")
+    function! b:test_scrape.TestBasicScrape() dict
+        let todolists = s:ScrapeProjectDir(s:Utils.GetCurrentDirectory().'/fixtures/projects')
+        call self.AssertEquals(len(todolists), 4)
+    endfunction
+    
+    " Easy function for testing all {{{2
+    function! b:TestAll()
+        call b:test_todo.RunTests()
+        call b:test_todolist.RunTests()
+        call b:test_utils.RunTests()
+        call b:test_scrape.RunTests()
+    endfunction
+    
+    " Add objects to FunctionRegister {{{2
+    call FunctionRegister.AddObject(s:Utils, 'Utils')
+    call FunctionRegister.AddObject(s:Todo, 'Todo')
+    call FunctionRegister.AddObject(s:TodoList, 'Todolist')
+endif
 
 " resetting cpo option
 let &cpo = s:save_cpo
