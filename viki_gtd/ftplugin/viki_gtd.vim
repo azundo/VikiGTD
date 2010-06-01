@@ -222,6 +222,11 @@ function! s:TodoList.GetDueTodayOrTomorrow() dict "{{{3
     return self.FilterByDate(today, tomorrow)
 endfunction
 
+function! s:TodoList.GetOverdue() dict "{{{3
+    let yesterday = strftime("%Y-%m-%d", localtime() - 24*60*60)
+    return self.FilterByDate("0000-00-00", yesterday)
+endfunction
+
 function! s:TodoList.Print(...) dict "{{{3
     let lines = []
     if a:0 > 0 " we'll print the parents
@@ -281,6 +286,8 @@ function! s:PrintTodos(filter) "{{{2
         let filtered_todos = all_todos_list.GetDueTodayOrTomorrow()
     elseif a:filter == 'tomorrow'
         let filtered_todos = all_todos_list.GetDueTomorrow()
+    elseif a:filter == 'overdue'
+        let filtered_todos = all_todos_list.GetOverdue()
     else
         return
     endif
@@ -300,6 +307,10 @@ endif
 
 if !exists(":PrintTodaysAndTomorrowsTodos")
     command PrintTodaysAndTomorrowsTodos :call s:PrintTodos('todayandtomorrow')
+endif
+
+if !exists(":PrintOverdueTodos")
+    command PrintOverdueTodos :call s:PrintTodos('overdue')
 endif
 
 " Highlight groups {{{1
