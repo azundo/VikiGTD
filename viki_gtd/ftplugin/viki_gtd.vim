@@ -68,6 +68,10 @@ function! s:Utils.RemoveDuplicates(l) "{{{3
     return val
 endfunction
 
+function! s:Utils.GetSundayForWeek(weektime)
+    let offset = str2nr(strftime("%w", a:weektime))
+    return a:weektime - (offset * 24 * 60 * 60)
+endfunction
 " Class: Todo {{{2
 "
 let s:Todo = {}
@@ -222,6 +226,12 @@ function! s:TodoList.GetDueTodayOrTomorrow() dict "{{{3
     return self.FilterByDate(today, tomorrow)
 endfunction
 
+function! s:TodoList.GetDueThisWeek() dict "{{{3
+    let this_week_sunday = strftime("%Y-%m-%d", s:Utils.GetSundayForWeek(localtime()))
+    let next_week_sunday = strftime("%Y-%m-%d", s:Utils.GetSundayForWeek(localtime() + 7*24*60*60))
+    return self.FilterByDate(this_week_sunday, next_week_sunday)
+endfunction
+
 function! s:TodoList.GetOverdue() dict "{{{3
     let yesterday = strftime("%Y-%m-%d", localtime() - 24*60*60)
     return self.FilterByDate("0000-00-00", yesterday)
@@ -250,9 +260,9 @@ function! s:TodoList.Print(...) dict "{{{3
     return join(lines, "\n")
 endfunction
 
-" Functions {{{1
+" Private Functions {{{1
 "
-"
+" 
 function! s:ScrapeProjectDir(directory) " {{{2
     let index_files = findfile('Index.viki', a:directory.'/**/*', -1)
     let standalone_projects = split(globpath(a:directory, '*.viki'), '\n')
@@ -277,7 +287,7 @@ function! s:CombineTodoLists(lists) "{{{2
     return combined_list
 endfunction
 
-function! s:PrintTodos(filter) "{{{2
+function! s:GetTodos(filter) "{{{2
     let all_todo_lists = s:ScrapeProjectDir(g:vikiGtdProjectsDir)
     let all_todos_list = s:CombineTodoLists(all_todo_lists)
     if a:filter == 'today'
@@ -288,19 +298,36 @@ function! s:PrintTodos(filter) "{{{2
         let filtered_todos = all_todos_list.GetDueTomorrow()
     elseif a:filter == 'overdue'
         let filtered_todos = all_todos_list.GetOverdue()
+    elseif a:filter == 'thisweek'
+        let fitered_todos = all_todos_list.GetDueThisWeek()
     elseif a:filter == 'all'
         let filtered_todos = all_todos_list
     else
-        return
+        let filtered_todos = all_todos_list
     endif
+    return filtered_todos
+endfunction
+
+function! s:PrintTodos(filter) "{{{2
+    let filtered_todos = s:GetTodos(a:filter)
     let split_todos = split(filtered_todos.Print(1), "\n")
     call append(line('.'), split_todos)
     exe "normal V".len(split_todos)."jgq"
 endfunction
 
+" Public Functions {{{1
+
+function! VikiGTDGetTodos(filter) "{{{2
+    return s:GetTodos(a:filter)
+endfunction
+
 " Commands {{{1
 if !exists(":PrintTodaysTodos")
     command PrintTodaysTodos :call s:PrintTodos('today')
+endif
+
+if !exists(":PrintThisWeeksTodos")
+    command PrintThisWeeksTodos :call s:PrintTodos('thisweek')
 endif
 
 if !exists(":PrintTomorrowsTodos")
