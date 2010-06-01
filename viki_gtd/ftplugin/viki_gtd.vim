@@ -18,26 +18,50 @@ set cpo&vim " set this to allow linecontinuations. cpo is reset at the end
 " Class: Utils {{{2
 "
 let s:Utils = {}
-function! s:Utils.GetCurrentDirectory() dict
+function! s:Utils.GetCurrentDirectory() dict "{{{3
     let current_buf = expand("%:p")
     let split_path = split(current_buf, '/')
     let current_dir = '/'.join(remove(split_path, 0, -2), '/')
     return current_dir
 endfunction
 
-function! s:Utils.LineIndent(line) dict
+function! s:Utils.LineIndent(line) dict "{{{3
     " Not that this currently counts tabs as 1. Don't use tabs! :)
     return strlen(matchstr(a:line, '^\s*'))
+endfunction
+
+function! s:Utils.CompareDates(first_date, second_date) "{{{3
+    " returns 0 if equal, -1 if first_date < second_date and 1 if first_date >
+    " second_date
+    " first_date and second_date must be formatted as "%Y-%m-%d"
+
+    " get equality out of the way first thing
+    if a:first_date == a:second_date
+        return 0
+    endif
+
+    " convert string formats to numbers to make them easily comparable
+    " For ex, coverts "2010-08-05" to 20100805. Numbers are then compared for
+    " gt/lt
+    let first_ymd = str2nr(join(split(a:first_date, '-'), ''))
+    let second_ymd = str2nr(join(split(a:second_date, '-'), ''))
+    if first_ymd > second_ymd
+        return 1
+    else
+        return -1
+    endif
 endfunction
 
 " Class: Todo {{{2
 "
 let s:Todo = {}
 function! s:Todo.init() dict
-    let ret_val = copy(self)
-    let ret_val.text = ""
-    let ret_val.date = ""
-    return ret_val
+    let instance = copy(self)
+    let instance.text = ""
+    let instance.date = ""
+    let instance.parent = {}
+    let instance.children = []
+    return instance
 endfunction
 
 function! s:Todo.ParseLines(lines) dict
@@ -60,22 +84,35 @@ endfunction
 
 let s:TodoList = {}
 
-function! s:TodoList.init() dict
-    let ret_val = copy(self)
-    let ret_val.todos = []
-    return ret_val
+function! s:TodoList.init() dict "{{{3
+    let instance = copy(self)
+    let instance.todos = []
+    return instance
 endfunction
 
-function! s:TodoList.AddTodo(lines) dict
+function! s:TodoList.AddTodo(lines, ...) dict "{{{3
     if a:lines != []
         let new_todo = s:Todo.init()
         call new_todo.ParseLines(a:lines)
         call add(self.todos, new_todo)
+        if a:0 > 0
+            let new_todo.parent = a:1
+            if has_key(a:1, 'children')
+                call add(a:1['children'], new_todo)
+            endif
+        endif
+        return new_todo
+    else
+        return {}
     endif
 endfunction
 
-function! s:TodoList.ParseLines(lines) dict
+function! s:TodoList.ParseLines(lines) dict "{{{3
     let lines_for_todo = []
+    " keep track of parent todos in a stack
+    " since we don't have a None in vim, use an empty
+    " object (dict) as the top parent
+    let parent_stack = [{},]
     " remove lines before the ** Todo
     while match(a:lines[0], '^\*\*\s*Todo') == -1
         call remove(a:lines, 0)
@@ -98,17 +135,47 @@ function! s:TodoList.ParseLines(lines) dict
         endif
 
         if line_indent != last_line_indent + 2
-            " here we are at a new todo item, so add the old one
-            call self.AddTodo(lines_for_todo)
+            " here we are at a new todo item but at the same level, so add the old one
+            let new_todo = self.AddTodo(lines_for_todo, parent_stack[0])
             let lines_for_todo = []
+            " Adjust the parent_stack appropriately based on indent level
+            " NOTE: This code assumes 4 space indenting!!!
+            if line_indent > last_line_indent
+                " we are indenting so we need to add the last todo as the
+                " current parent
+                call insert(parent_stack, new_todo)
+            elseif line_indent < last_line_indent
+                " we are dedenting so we need to remove the appropriate
+                " parents
+                for indent_level in range((last_line_indent - line_indent)/4)
+                    call remove(parent_stack, 0)
+                endfor
+            endif
+            let last_line_indent = line_indent
         endif
         call add(lines_for_todo, line)
-        let last_line_indent = line_indent
     endfor
     " parse the final todo item after all lines have been gone through
     call self.AddTodo(lines_for_todo)
 endfunction
-" }}}
+
+function! s:TodoList.FilterByDate(start_date, end_date) dict "{{{3
+    let filtered_list = copy(self.todos)
+    let filter_function = 'v:val.date != "" && s:Utils.CompareDates(v:val.date, a:start_date) >= 0 && s:Utils.CompareDates(v:val.date, a:end_date) <= 0'
+    call filter(filtered_list, filter_function)
+    return filtered_list
+endfunction
+
+function! s:TodoList.GetDueToday() dict "{{{3
+    let today = strftime("%Y-%m-%d")
+    return self.FilterByDate(today, today)
+endfunction
+
+function! s:TodoList.GetDueTomorrow() dict "{{{3
+    let tomorrow = strftime("%Y-%m-%d", localtime() + 24*60*60)
+    return self.FilterByDate(tomorrow, tomorrow)
+endfunction
+
 " Functions {{{1
 "
 "
@@ -127,6 +194,7 @@ function! s:ScrapeProjectDir(directory)
     endfor
     return todo_lists
 endfunction
+
 " Tests {{{1
 " Test Todo {{{2
 let b:test_todo = UnitTest.init("TestTodo")
@@ -154,7 +222,7 @@ endfunction
 " Test TodoList {{{2
 let b:test_todolist = UnitTest.init("TestTodoList")
 
-function! b:test_todolist.TestParseFile() dict
+function! b:test_todolist.TestParseFile() dict "{{{3
     let current_dir = s:Utils.GetCurrentDirectory()
     let test_file = current_dir . '/fixtures/standardTodo.txt'
     let lines = readfile(current_dir . '/fixtures/standardTodo.txt')
@@ -166,15 +234,42 @@ function! b:test_todolist.TestParseFile() dict
     call self.AssertEquals(new_todolist.todos[2].text, "Somthing here", "Third todo item.")
 endfunction
 
-function! b:test_todolist.TestTougherFile() dict
+function! b:test_todolist.TestTougherFile() dict "{{{3
     let current_dir = s:Utils.GetCurrentDirectory()
     let test_file = current_dir . '/fixtures/tougherTodo.txt'
     let lines = readfile(current_dir . '/fixtures/tougherTodo.txt')
     let new_todolist = s:TodoList.init()
     call new_todolist.ParseLines(lines)
     call self.AssertEquals(len(new_todolist.todos), 6, "TodoList should have three items.")
+    call self.AssertEquals(new_todolist.todos[3].parent, new_todolist.todos[2])
+    call self.AssertEquals(new_todolist.todos[0].parent, {})
+    call self.AssertEquals(new_todolist.todos[1].parent, {})
+    call self.AssertEquals(new_todolist.todos[2].parent, {})
+    call self.AssertEquals(new_todolist.todos[4].parent, {})
+    call self.AssertEquals(new_todolist.todos[5].parent, {})
+    call self.AssertEquals(new_todolist.todos[2].children[0], new_todolist.todos[3])
 endfunction
 
+function! b:test_todolist.TestDateFilter() dict "{{{3
+    " ok, parsing some files here which is not really unit-testy, but I'm not
+    " about to write a whole json fixture parser or anything like that
+    let current_dir = s:Utils.GetCurrentDirectory()
+    let test_file = current_dir . '/fixtures/datedTodos.txt'
+    let lines = readfile(current_dir . '/fixtures/datedTodos.txt')
+    let new_todolist = s:TodoList.init()
+    call new_todolist.ParseLines(lines)
+
+    let filtered_todos = new_todolist.FilterByDate('0000-00-00', '9999-99-99')
+    call self.AssertEquals(10, len(filtered_todos))
+
+    let filtered_todos = new_todolist.FilterByDate('2010-01-01', '2010-01-31')
+    call self.AssertEquals(7, len(filtered_todos))
+
+    let filtered_todos = new_todolist.FilterByDate('2010-01-01', '2010-01-03')
+    call self.AssertEquals(3, len(filtered_todos))
+endfunction
+
+" Test Utils {{{2
 let b:test_utils = UnitTest.init("TestUtils")
 function! b:test_utils.TestGetDirectory() dict
     let current_dir = s:Utils.GetCurrentDirectory()
@@ -185,6 +280,12 @@ function! b:test_utils.TestLineIndent() dict
     call self.AssertEquals(s:Utils.LineIndent("    Four spaces."), 4, "Four spaces should return an indent of 4")
     call self.AssertEquals(s:Utils.LineIndent("No spaces"), 0, "No spaces should return an indent of 0")
     call self.AssertEquals(s:Utils.LineIndent("\tA tab!"), 1, "A tab should return an indent of 1")
+endfunction
+
+function! b:test_utils.TestCompareDates() dict
+    call self.AssertEquals(1, s:Utils.CompareDates("2010-08-05", "2010-08-04"))
+    call self.AssertEquals(0, s:Utils.CompareDates("2010-08-05", "2010-08-05"))
+    call self.AssertEquals(-1, s:Utils.CompareDates("2010-08-05", "2010-08-06"))
 endfunction
 
 
