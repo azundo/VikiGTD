@@ -288,6 +288,8 @@ function! s:PrintTodos(filter) "{{{2
         let filtered_todos = all_todos_list.GetDueTomorrow()
     elseif a:filter == 'overdue'
         let filtered_todos = all_todos_list.GetOverdue()
+    elseif a:filter == 'all'
+        let filtered_todos = all_todos_list
     else
         return
     endif
@@ -311,6 +313,10 @@ endif
 
 if !exists(":PrintOverdueTodos")
     command PrintOverdueTodos :call s:PrintTodos('overdue')
+endif
+
+if !exists(":PrintAllTodos")
+    command PrintAllTodos :call s:PrintTodos('all')
 endif
 
 " Highlight groups {{{1
