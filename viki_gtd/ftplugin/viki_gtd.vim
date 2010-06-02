@@ -583,9 +583,9 @@ endif
 
 " Mappings {{{2
 if !hasmapto('<Plug>VikiGTDMarkComplete')
-    map <unique> <Leader>mc <Plug>VikiGTDMarkComplete
+    map <buffer> <unique> <LocalLeader>mc <Plug>VikiGTDMarkComplete
 endif
-noremap <unique> <script> <Plug>VikiGTDMarkComplete <SID>MarkComplete
+noremap <buffer> <script> <unique> <Plug>VikiGTDMarkComplete <SID>MarkComplete
 noremap <SID>MarkComplete :call <SID>MarkTodoUnderCursorComplete()<CR>
 
 " if !exists(":EchoTodoUnderCursor")
