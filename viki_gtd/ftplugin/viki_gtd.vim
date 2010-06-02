@@ -19,6 +19,10 @@ if !exists("g:vikiGtdProjectsDir")
     let g:vikiGtdProjectsDir = $HOME.'/Wikis/projects'
 endif
 
+" Script var definitions {{{1
+"
+let s:todo_begin = '^\s*[-@] '
+
 " Object Definitions {{{1
 "
 " Class: Utils {{{2
@@ -80,26 +84,37 @@ function! s:Todo.init() dict "{{{3
     let instance.text = ""
     let instance.date = ""
     let instance.project_name = ""
+    let instance.starting_line = 0
+    let instance.line_length = 0
     let instance.parent = {}
     let instance.children = []
     return instance
 endfunction
 
-function! s:Todo.ParseLines(lines) dict "{{{3
+function! s:Todo.ParseLines(lines, ...) dict "{{{3
+    let self.line_length = len(a:lines)
     let first_line = remove(a:lines, 0)
-    if match(first_line, '^\s*[@-] ') == -1
+    if match(first_line, s:todo_begin) == -1
         throw "vikiGTDError: Todo item is improperly constructed - first line does not start with a bullet point character (@ or -)."
     endif
-    let self.text = substitute(first_line, '^\s*[@-] ', '', '')
+    let self.text = substitute(first_line, s:todo_begin, '', '')
     let self.text = substitute(self.text, '\s*$', '', '')
     for line in a:lines
-        if match(line, '^\s*[@-] ') != -1
+        if match(line, s:todo_begin) != -1
             throw "vikiGTDError: Todo item is improperly constructed - additional starts with a bullet point character (@ or -)."
         endif
        let stripped_line = substitute(substitute(line, '^\s*', '', ''), '\s*$', '', '')
        let self.text = self.text . ' ' . stripped_line
     endfor
+    let project_match = matchlist(self.text, ' #\(\w\+\)$')
+    if !empty(project_match)
+        let self.project_name = project_match[1]
+        let self.text = substitute(self.text, ' #\(\w\+\)$', '', '')
+    endif
     let self.date = matchstr(self.text, '\d\{4\}-\d\{2\}-\d\{2\}')
+    if a:0 > 0 && type(a:1) == type(0)
+        let self.starting_line = a:1
+    endif
 endfunction
 
 function! s:Todo.Print(...) dict " {{{3
@@ -133,17 +148,15 @@ function! s:TodoList.init() dict "{{{3
     return instance
 endfunction
 
-function! s:TodoList.AddTodo(lines, ...) dict "{{{3
+function! s:TodoList.AddTodo(lines, parent, starting_line) dict "{{{3
     if a:lines != []
         let new_todo = s:Todo.init()
-        call new_todo.ParseLines(a:lines)
+        call new_todo.ParseLines(a:lines, a:starting_line)
         let new_todo.project_name = self.project_name
         call add(self.todos, new_todo)
-        if a:0 > 0
-            let new_todo.parent = a:1
-            if has_key(a:1, 'children')
-                call add(a:1['children'], new_todo)
-            endif
+        let new_todo.parent = a:parent
+        if has_key(a:parent, 'children')
+            call add(a:parent['children'], new_todo)
         endif
         return new_todo
     else
@@ -156,6 +169,8 @@ function! s:TodoList.ParseLines(lines) dict "{{{3
         return
     endif
     let lines_for_todo = []
+    let line_counter = 1
+    let current_todo_start = 0
     " keep track of parent todos in a stack
     " since we don't have a None in vim, use an empty
     " object (dict) as the top parent
@@ -166,11 +181,17 @@ function! s:TodoList.ParseLines(lines) dict "{{{3
         if empty(a:lines)
             return
         endif
+        let line_counter = line_counter + 1
     endwhile
     " Remove the **Todo line
     call remove(a:lines, 0)
     let last_line_indent = -1
     for line in a:lines
+        " increment counter at the beginning of the for loop to
+        " keep things simple
+        " the one-off error that would have happened is negated by
+        " removing the **Todo line and not incrementing the counter then
+        let line_counter = line_counter + 1
         let line_indent = s:Utils.LineIndent(line)
 
         if line_indent == 0 
@@ -186,8 +207,9 @@ function! s:TodoList.ParseLines(lines) dict "{{{3
 
         if line_indent != last_line_indent + 2
             " here we are at a new todo item but at the same level, so add the old one
-            let new_todo = self.AddTodo(lines_for_todo, parent_stack[0])
+            let new_todo = self.AddTodo(lines_for_todo, parent_stack[0], current_todo_start)
             let lines_for_todo = []
+            let current_todo_start = line_counter
             " Adjust the parent_stack appropriately based on indent level
             " NOTE: This code assumes 4 space indenting!!!
             if line_indent > last_line_indent
@@ -206,7 +228,7 @@ function! s:TodoList.ParseLines(lines) dict "{{{3
         call add(lines_for_todo, line)
     endfor
     " parse the final todo item after all lines have been gone through
-    call self.AddTodo(lines_for_todo, parent_stack[0])
+    call self.AddTodo(lines_for_todo, parent_stack[0], current_todo_start)
 endfunction
 
 function! s:TodoList.FilterByDate(start_date, end_date) dict "{{{3
@@ -272,9 +294,14 @@ endfunction
 " Private Functions {{{1
 "
 " 
-function! s:ScrapeProjectDir(directory) " {{{2
-    let index_files = findfile('Index.viki', a:directory.'/**/*', -1)
-    let standalone_projects = split(globpath(a:directory, '*.viki'), '\n')
+function! s:ScrapeProjectDir(...) " {{{2
+    if a:0 > 0
+        let directory = a:1
+    else
+        let directory = g:vikiGtdProjectsDir
+    endif
+    let index_files = findfile('Index.viki', directory.'/**/*', -1)
+    let standalone_projects = split(globpath(directory, '*.viki'), '\n')
     " remove the projects/Index.viki
     call filter(standalone_projects, 'v:val !~ "Index.viki"')
     " Add the files together
@@ -293,8 +320,13 @@ function! s:ScrapeProjectDir(directory) " {{{2
     return todo_lists
 endfunction
 
-function! s:ScrapeProject(directory, project_name) " {{{2
-    let filename = a:directory
+function! s:GetProjectIndex(project_name, ...) " {{{2
+    if a:0 > 0
+        let directory = a:1
+    else
+        let directory = g:vikiGtdProjectsDir
+    endif
+    let filename = directory
     if match(filename, '/$') == -1
         let filename = filename . '/'
     endif
@@ -304,6 +336,15 @@ function! s:ScrapeProject(directory, project_name) " {{{2
         let filename = filename . a:project_name . '/Index.viki'
     else
         throw "vikiGTDError: Project to be read does not exist."
+    endif
+    return filename
+endfunction
+
+function! s:ScrapeProject(project_name, ...) " {{{2
+    if a:0 > 0
+        let filename = s:GetProjectIndex(a:project_name, a:1)
+    else
+        let filename = s:GetProjectIndex(a:project_name)
     endif
     let file_lines = readfile(filename)
     let project_todo = s:TodoList.init()
@@ -328,7 +369,7 @@ function! s:CombineTodoLists(lists) "{{{2
 endfunction
 
 function! s:GetTodos(filter) "{{{2
-    let all_todo_lists = s:ScrapeProjectDir(g:vikiGtdProjectsDir)
+    let all_todo_lists = s:ScrapeProjectDir()
     let all_todos_list = s:CombineTodoLists(all_todo_lists)
     if a:filter == 'today'
         let filtered_todos = all_todos_list.GetDueToday()
@@ -339,7 +380,7 @@ function! s:GetTodos(filter) "{{{2
     elseif a:filter == 'overdue'
         let filtered_todos = all_todos_list.GetOverdue()
     elseif a:filter == 'thisweek'
-        let fitered_todos = all_todos_list.GetDueThisWeek()
+        let filtered_todos = all_todos_list.GetDueThisWeek()
     elseif a:filter == 'all'
         let filtered_todos = all_todos_list
     else
@@ -353,6 +394,91 @@ function! s:PrintTodos(filter) "{{{2
     let split_todos = split(filtered_todos.Print(1), "\n")
     call append(line('.'), split_todos)
     exe "normal V".len(split_todos)."jgq"
+endfunction
+
+function! s:GetTodoUnderCursor() "{{{2
+    let current_line_no = line('.')
+    let current_line = getline('.')
+    let first_indent = s:Utils.LineIndent(current_line)
+    let first_line_no = -1
+    if match(current_line, s:todo_begin) != -1
+        " if the current line matches the beginning of a todo, save it as the
+        " first line
+        let first_line_no = current_line_no
+    else
+        " otherwise iterate up through the file looking for a line that
+        " matches.
+        let current_line_no = current_line_no - 1
+        while current_line_no != 0
+            let current_line = getline(current_line_no)
+            if match(current_line, s:todo_begin) != -1
+                if s:Utils.LineIndent(current_line) == first_indent - 2
+                    " if the line matches, it should be at an indent level
+                    " of two less than the first line to be a proper todo
+                    " set our first_indent to the indentation of the first
+                    " line
+                    let first_line_no = current_line_no
+                    let first_indent = first_indent - 2
+                endif
+                break
+            else
+                if s:Utils.LineIndent(current_line) != first_indent
+                    " break if the current indent is different than the first
+                    " indent but we haven't matched a beginning of a todo item
+                    break
+                endif
+            endif
+            let current_line_no = current_line_no - 1
+        endwhile
+    endif
+    if first_line_no == -1
+        " if we didn't find a first line, return here
+        return
+    endif
+    " find the last line of the todo so we can call getline on the range
+    let current_line_no = first_line_no + 1
+    " increment our line number while the indentation is two more than the
+    " first line
+    while s:Utils.LineIndent(getline(current_line_no)) == (first_indent + 2)
+        let current_line_no = current_line_no + 1
+    endwhile
+
+    let todo_lines = getline(first_line_no, current_line_no - 1)
+    let current_todo = s:Todo.init()
+    call current_todo.ParseLines(todo_lines, first_line_no)
+    return current_todo
+endfunction
+
+function! s:MarkTodoUnderCursorComplete()
+    let current_todo = s:GetTodoUnderCursor()
+    if current_todo.project_name != ""
+        try
+            let project_todo_list = s:ScrapeProject(current_todo.project_name)
+            for todo in project_todo_list.todos
+                if todo.text == current_todo.text
+                    let project_file = s:GetProjectIndex(current_todo.project_name)
+                    if filereadable(substitute(project_file, '\(\w\+\.viki\)$', '\.\1\.swp', ''))
+                        echo "Project file is open - can't modify."
+                    else
+                        if todo.starting_line != 0
+                            let project_file_contents = readfile(project_file)
+                            call remove(project_file_contents, todo.starting_line - 1, todo.starting_line - 1 + todo.line_length - 1)
+                            call writefile(project_file_contents, project_file)
+                            echo "Removed todo from " . todo.project_name . '.'
+                        else
+                            echo "No starting_line for todo - could not remove."
+                        endif
+                    endif
+                    break
+                endif
+            endfor
+        catch /vikiGTDError/
+            echo 'Could not find project ' . current_todo.project_name . '. Not removing any todo item.'
+        endtry
+    endif
+    if current_todo.starting_line != 0
+        call setline(current_todo.starting_line, substitute(getline(current_todo.starting_line), '^\(\s*\)@', '\1-', ''))
+    endif
 endfunction
 
 " Public Functions {{{1
@@ -386,6 +512,18 @@ if !exists(":PrintAllTodos")
     command PrintAllTodos :call s:PrintTodos('all')
 endif
 
+if !exists(":MarkTodoUnderCursorComplete")
+    command MarkTodoUnderCursorComplete :call s:MarkTodoUnderCursorComplete()
+endif
+
+" if !exists(":EchoTodoUnderCursor")
+"     command EchoTodoUnderCursor :echo s:GetTodoUnderCursor().text
+" endif
+" 
+" if !exists(":EchoProjectUnderCursor")
+"     command EchoProjectUnderCursor :echo s:GetTodoUnderCursor().project_name
+" endif
+
 " Highlight groups {{{1
 highlight DueToday ctermbg=Green
 call matchadd("DueToday", strftime("%Y-%m-%d"))
@@ -416,6 +554,23 @@ if exists('UnitTest')
         call todo.ParseLines(["    @ A todo with a single line and date 2010-05-12",])
         call self.AssertEquals(todo.date, "2010-05-12", "Simple date parsing.")
     endfunction
+
+    function! b:test_todo.TestParseWithProject() dict
+        let todo = s:Todo.init()
+        let todo_lines = [
+            \"    @ The first line of the todo with some stuff",
+            \"      the second line, with other stuff and a #project"]
+        call todo.ParseLines(todo_lines)
+        call self.AssertEquals(todo.project_name, 'project')
+        call self.AssertEquals(todo.text, 'The first line of the todo with some stuff the second line, with other stuff and a')
+        " A regression test - this one is failing in the wild
+        "
+        let todo = s:Todo.init()
+        call todo.ParseLines(['    @ E-mail Diana about LP stuff 2010-06-02 #LearningPartnership',])
+        call self.AssertEquals(todo.project_name, 'LearningPartnership')
+        call self.AssertEquals(todo.text, 'E-mail Diana about LP stuff 2010-06-02')
+    endfunction
+
     
     " Test TodoList {{{2
     let b:test_todolist = UnitTest.init("TestTodoList")
@@ -428,8 +583,14 @@ if exists('UnitTest')
         call new_todolist.ParseLines(lines)
         call self.AssertEquals(len(new_todolist.todos), 3, "TodoList should have three items.")
         call self.AssertEquals(new_todolist.todos[0].text, "A random item", "First todo item.")
+        call self.AssertEquals(new_todolist.todos[0].starting_line, 2)
+        call self.AssertEquals(new_todolist.todos[0].line_length, 1)
         call self.AssertEquals(new_todolist.todos[1].text, "Another random item that is longer than a single line of text so we can parse this one properly", "Second todo item.")
+        call self.AssertEquals(new_todolist.todos[1].starting_line, 3)
+        call self.AssertEquals(new_todolist.todos[1].line_length, 2)
         call self.AssertEquals(new_todolist.todos[2].text, "Somthing here", "Third todo item.")
+        call self.AssertEquals(new_todolist.todos[2].starting_line, 5)
+        call self.AssertEquals(new_todolist.todos[2].line_length, 1)
     endfunction
     
     function! b:test_todolist.TestTougherFile() dict "{{{3
@@ -518,12 +679,12 @@ if exists('UnitTest')
     endfunction
 
     function! b:test_scrape.TestProjectScrape() dict
-        let todolist = s:ScrapeProject(s:Utils.GetCurrentDirectory().'/fixtures/projects', 'proj1')
+        let todolist = s:ScrapeProject('proj1', s:Utils.GetCurrentDirectory().'/fixtures/projects')
         call self.AssertEquals(3, len(todolist.todos))
     endfunction
 
     function! b:test_scrape.TestProjectScrapeName() dict
-        let todolist = s:ScrapeProject(s:Utils.GetCurrentDirectory().'/fixtures/projects', 'proj1')
+        let todolist = s:ScrapeProject('proj1', s:Utils.GetCurrentDirectory().'/fixtures/projects')
         call self.AssertEquals('proj1', todolist.project_name)
         " echo todolist.Print()
         " echo todolist.Print(1)
