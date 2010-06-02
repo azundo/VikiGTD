@@ -79,6 +79,7 @@ function! s:Todo.init() dict "{{{3
     let instance = copy(self)
     let instance.text = ""
     let instance.date = ""
+    let instance.project_name = ""
     let instance.parent = {}
     let instance.children = []
     return instance
@@ -113,6 +114,11 @@ function! s:Todo.Print(...) dict " {{{3
             call add(lines, child.Print(indent_level+4, a:2))
         endfor
     endif
+    if a:0 != 2 && self.project_name != ""
+        " add the project tag if we're not recursivley printing, or if
+        " we're explicitly told to with the existence of a third argument
+        let lines[0] = lines[0] . ' #' . self.project_name
+    endif
     return join(lines, "\n")
 endfunction
 
@@ -123,6 +129,7 @@ let s:TodoList = {}
 function! s:TodoList.init() dict "{{{3
     let instance = copy(self)
     let instance.todos = []
+    let instance.project_name = ""
     return instance
 endfunction
 
@@ -130,6 +137,7 @@ function! s:TodoList.AddTodo(lines, ...) dict "{{{3
     if a:lines != []
         let new_todo = s:Todo.init()
         call new_todo.ParseLines(a:lines)
+        let new_todo.project_name = self.project_name
         call add(self.todos, new_todo)
         if a:0 > 0
             let new_todo.parent = a:1
@@ -198,7 +206,7 @@ function! s:TodoList.ParseLines(lines) dict "{{{3
         call add(lines_for_todo, line)
     endfor
     " parse the final todo item after all lines have been gone through
-    call self.AddTodo(lines_for_todo)
+    call self.AddTodo(lines_for_todo, parent_stack[0])
 endfunction
 
 function! s:TodoList.FilterByDate(start_date, end_date) dict "{{{3
@@ -250,7 +258,8 @@ function! s:TodoList.Print(...) dict "{{{3
         endfor
         let temp = s:Utils.RemoveDuplicates(temp)
         for t in temp
-            call add(lines, t.Print(4, a:1))
+            " third argument here prints the project code for the parent items
+            call add(lines, t.Print(4, a:1, 1))
         endfor
     else
         for t in self.todos
@@ -270,18 +279,49 @@ function! s:ScrapeProjectDir(directory) " {{{2
     call filter(standalone_projects, 'v:val !~ "Index.viki"')
     " Add the files together
     let index_files = extend(index_files, standalone_projects)
-    let todo_lists = []
+    let todo_lists = {}
     for filename in index_files
         let new_list = s:TodoList.init()
+        if filename =~ 'Index.viki'
+            let new_list.project_name = matchlist(filename, '\(\w\+\)/Index\.viki$')[1]
+        else
+            let new_list.project_name = matchlist(filename, '\(\w\+\)\.viki$')[1]
+        endif
         call new_list.ParseLines(readfile(filename))
-        call add(todo_lists, new_list)
+        let todo_lists[new_list.project_name] =  new_list
     endfor
     return todo_lists
 endfunction
 
+function! s:ScrapeProject(directory, project_name) " {{{2
+    let filename = a:directory
+    if match(filename, '/$') == -1
+        let filename = filename . '/'
+    endif
+    if filereadable(filename . a:project_name . '.viki')
+        let filename = filename . a:project_name . '.viki'
+    elseif filereadable(filename . a:project_name . '/Index.viki')
+        let filename = filename . a:project_name . '/Index.viki'
+    else
+        throw "vikiGTDError: Project to be read does not exist."
+    endif
+    let file_lines = readfile(filename)
+    let project_todo = s:TodoList.init()
+    let project_todo.project_name = a:project_name
+    call project_todo.ParseLines(file_lines)
+    return project_todo
+endfunction
+
 function! s:CombineTodoLists(lists) "{{{2
     let combined_list = s:TodoList.init()
-    for l in a:lists
+    if type(a:lists) == type({})
+        let ls = values(a:lists)
+    elseif type(a:lists) == type([])
+        let ls = a:lists
+    else
+        throw "vikiGTDError: CombineTodoLists takes only a dictionary or list."
+    endif
+    for l in ls
         call extend(combined_list.todos, l.todos)
     endfor
     return combined_list
@@ -471,6 +511,22 @@ if exists('UnitTest')
     function! b:test_scrape.TestBasicScrape() dict
         let todolists = s:ScrapeProjectDir(s:Utils.GetCurrentDirectory().'/fixtures/projects')
         call self.AssertEquals(len(todolists), 4)
+        call self.AssertTrue(has_key(todolists, 'proj1'))
+        call self.AssertTrue(has_key(todolists, 'proj2'))
+        call self.AssertTrue(has_key(todolists, 'AnotherStandalone'))
+        call self.AssertTrue(has_key(todolists, 'SingleFileProject'))
+    endfunction
+
+    function! b:test_scrape.TestProjectScrape() dict
+        let todolist = s:ScrapeProject(s:Utils.GetCurrentDirectory().'/fixtures/projects', 'proj1')
+        call self.AssertEquals(3, len(todolist.todos))
+    endfunction
+
+    function! b:test_scrape.TestProjectScrapeName() dict
+        let todolist = s:ScrapeProject(s:Utils.GetCurrentDirectory().'/fixtures/projects', 'proj1')
+        call self.AssertEquals('proj1', todolist.project_name)
+        " echo todolist.Print()
+        " echo todolist.Print(1)
     endfunction
     
     " Easy function for testing all {{{2
