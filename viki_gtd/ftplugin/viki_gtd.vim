@@ -21,7 +21,7 @@ endif
 
 " Script var definitions {{{1
 "
-let s:todo_begin = '^\s*[-@] '
+let s:todo_begin = '^\s*\([-@]\) '
 
 " Object Definitions {{{1
 "
@@ -84,11 +84,37 @@ function! s:Todo.init() dict "{{{3
     let instance.text = ""
     let instance.date = ""
     let instance.project_name = ""
+    let instance.is_complete = 0
     let instance.starting_line = 0
     let instance.line_length = 0
     let instance.parent = {}
     let instance.children = []
     return instance
+endfunction
+
+function s:Todo.Delete() dict "{{{3
+    let project_file = s:GetProjectIndex(self.project_name)
+    if filereadable(substitute(project_file, '\(\w\+\.viki\)$', '\.\1\.swp', ''))
+        echo "Project file for " . self.project_name . " is open - can't modify."
+    else
+        if self.starting_line != 0
+            let project_file_contents = readfile(project_file)
+            call remove(project_file_contents, self.starting_line - 1, self.starting_line - 1 + self.GetTreeLineLength() - 1)
+            call writefile(project_file_contents, project_file)
+            echo "Removed todo from " . self.project_name . '.'
+            return 1
+        else
+            echo "No starting_line for todo - could not remove."
+        endif
+    endif
+endfunction
+
+function s:Todo.GetTreeLineLength() dict " {{{3
+    let line_length = self.line_length
+    for child in self.children
+        let line_length =  line_length + child.GetTreeLineLength()
+    endfor
+    return line_length
 endfunction
 
 function! s:Todo.ParseLines(lines, ...) dict "{{{3
@@ -97,6 +123,11 @@ function! s:Todo.ParseLines(lines, ...) dict "{{{3
     if match(first_line, s:todo_begin) == -1
         throw "vikiGTDError: Todo item is improperly constructed - first line does not start with a bullet point character (@ or -)."
     endif
+
+    if matchlist(first_line, s:todo_begin)[1] == '-'
+        let self.is_complete = 1
+    endif
+
     let self.text = substitute(first_line, s:todo_begin, '', '')
     let self.text = substitute(self.text, '\s*$', '', '')
     for line in a:lines
@@ -292,8 +323,6 @@ function! s:TodoList.Print(...) dict "{{{3
 endfunction
 
 " Private Functions {{{1
-"
-" 
 function! s:ScrapeProjectDir(...) " {{{2
     if a:0 > 0
         let directory = a:1
@@ -396,9 +425,15 @@ function! s:PrintTodos(filter) "{{{2
     exe "normal V".len(split_todos)."jgq"
 endfunction
 
-function! s:GetTodoUnderCursor() "{{{2
+function! s:GetTodoForLine(...) "{{{2
+    if a:0 > 0
+        let current_line_no = a:1
+    else
+        let current_line_no = line('.')
+    endif
+
     let current_line_no = line('.')
-    let current_line = getline('.')
+    let current_line = getline(current_line_no)
     let first_indent = s:Utils.LineIndent(current_line)
     let first_line_no = -1
     if match(current_line, s:todo_begin) != -1
@@ -449,24 +484,50 @@ function! s:GetTodoUnderCursor() "{{{2
     return current_todo
 endfunction
 
-function! s:MarkTodoUnderCursorComplete()
-    let current_todo = s:GetTodoUnderCursor()
+function! s:GetTopLevelTodoForLine(...) "{{{2
+    if a:0 > 0
+        let current_line_no = a:1
+    else
+        let current_line_no = line('.')
+    endif
+    while current_line_no > 0 && s:Utils.LineIndent(getline(current_line_no)) != 4
+        if s:Utils.LineIndent(getline(current_line_no)) == 0 && getline(current_line_no) != ""
+            return
+        endif
+        let current_line_no = current_line_no - 1
+    endwhile
+    if match(getline(current_line_no), s:todo_begin) != -1
+        let first_line_no = current_line_no
+        let current_line_no = current_line_no + 1
+        while s:Utils.LineIndent(getline(current_line_no)) == 6
+            let current_line_no = current_line_no + 1
+        endwhile
+        let top_todo = s:Todo.init()
+        call top_todo.ParseLines(getline(first_line_no, current_line_no - 1))
+        return top_todo
+    endif
+endfunction
+
+function! s:MarkTodoUnderCursorComplete() "{{{2
+    let current_todo = s:GetTodoForLine()
+    if current_todo.is_complete == 1
+        echo "Todo is already marked complete."
+        return
+    endif
+    if current_todo.project_name == ""
+        let toplevel_todo = s:GetTopLevelTodoForLine()
+        let current_todo.project_name = toplevel_todo.project_name
+    endif
     if current_todo.project_name != ""
         try
             let project_todo_list = s:ScrapeProject(current_todo.project_name)
             for todo in project_todo_list.todos
                 if todo.text == current_todo.text
-                    let project_file = s:GetProjectIndex(current_todo.project_name)
-                    if filereadable(substitute(project_file, '\(\w\+\.viki\)$', '\.\1\.swp', ''))
-                        echo "Project file is open - can't modify."
-                    else
-                        if todo.starting_line != 0
-                            let project_file_contents = readfile(project_file)
-                            call remove(project_file_contents, todo.starting_line - 1, todo.starting_line - 1 + todo.line_length - 1)
-                            call writefile(project_file_contents, project_file)
-                            echo "Removed todo from " . todo.project_name . '.'
-                        else
-                            echo "No starting_line for todo - could not remove."
+                    let deleted = todo.Delete()
+                    if deleted == 0
+                        let c = confirm("Todo could not be deleted from project file. Still mark as completed?", "&Yes\n&No")
+                        if c == 2
+                            return
                         endif
                     endif
                     break
@@ -475,6 +536,8 @@ function! s:MarkTodoUnderCursorComplete()
         catch /vikiGTDError/
             echo 'Could not find project ' . current_todo.project_name . '. Not removing any todo item.'
         endtry
+    else
+        echo 'Could not identify project for todo, no todo removed.'
     endif
     if current_todo.starting_line != 0
         call setline(current_todo.starting_line, substitute(getline(current_todo.starting_line), '^\(\s*\)@', '\1-', ''))
@@ -487,7 +550,9 @@ function! VikiGTDGetTodos(filter) "{{{2
     return s:GetTodos(a:filter)
 endfunction
 
-" Commands {{{1
+" Commands and Mappings {{{1
+"
+" Commands {{{2
 if !exists(":PrintTodaysTodos")
     command PrintTodaysTodos :call s:PrintTodos('today')
 endif
@@ -516,12 +581,19 @@ if !exists(":MarkTodoUnderCursorComplete")
     command MarkTodoUnderCursorComplete :call s:MarkTodoUnderCursorComplete()
 endif
 
+" Mappings {{{2
+if !hasmapto('<Plug>VikiGTDMarkComplete')
+    map <unique> <Leader>mc <Plug>VikiGTDMarkComplete
+endif
+noremap <unique> <script> <Plug>VikiGTDMarkComplete <SID>MarkComplete
+noremap <SID>MarkComplete :call <SID>MarkTodoUnderCursorComplete()<CR>
+
 " if !exists(":EchoTodoUnderCursor")
-"     command EchoTodoUnderCursor :echo s:GetTodoUnderCursor().text
+"     command EchoTodoUnderCursor :echo s:GetTodoForLine().text
 " endif
 " 
 " if !exists(":EchoProjectUnderCursor")
-"     command EchoProjectUnderCursor :echo s:GetTodoUnderCursor().project_name
+"     command EchoProjectUnderCursor :echo s:GetTodoForLine().project_name
 " endif
 
 " Highlight groups {{{1
