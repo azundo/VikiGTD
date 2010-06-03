@@ -5,9 +5,9 @@
 "
 " Some general niceties
 " Leave this out for now so I can easily source file
-" if exists('b:loaded_viki_gtd')
-"     finish
-" endif
+if exists('b:loaded_viki_gtd')
+    finish
+endif
 let b:loaded_viki_gtd = 1
 
 let s:save_cpo = &cpo
@@ -553,29 +553,35 @@ endfunction
 " Commands and Mappings {{{1
 "
 " Commands {{{2
-if !exists(":PrintTodaysTodos")
-    command PrintTodaysTodos :call s:PrintTodos('today')
+"
+if !exists(":PrintTodos")
+    command PrintTodos :call s:PrintTodos("todayandtomorrow")
 endif
 
-if !exists(":PrintThisWeeksTodos")
-    command PrintThisWeeksTodos :call s:PrintTodos('thisweek')
+if !exists(":PrintTodosToday")
+    command PrintTodosToday :call s:PrintTodos('today')
 endif
 
-if !exists(":PrintTomorrowsTodos")
-    command PrintTomorrowsTodos :call s:PrintTodos('tomorrow')
+if !exists(":PrintTodosThisWeek")
+    command PrintTodosThisWeek :call s:PrintTodos('thisweek')
 endif
 
-if !exists(":PrintTodaysAndTomorrowsTodos")
-    command PrintTodaysAndTomorrowsTodos :call s:PrintTodos('todayandtomorrow')
+if !exists(":PrintTodosTomorrow")
+    command PrintTodosTomorrow :call s:PrintTodos('tomorrow')
 endif
 
-if !exists(":PrintOverdueTodos")
-    command PrintOverdueTodos :call s:PrintTodos('overdue')
+if !exists(":PrintTodosTodayAndTomorrow")
+    command PrintTodosTodayAndTomorrow :call s:PrintTodos('todayandtomorrow')
 endif
 
-if !exists(":PrintAllTodos")
-    command PrintAllTodos :call s:PrintTodos('all')
+if !exists(":PrintTodosOverdue")
+    command PrintTodosOverdue :call s:PrintTodos('overdue')
 endif
+
+if !exists(":PrintTodosAll")
+    command PrintTodosAll :call s:PrintTodos('all')
+endif
+
 
 if !exists(":MarkTodoUnderCursorComplete")
     command MarkTodoUnderCursorComplete :call s:MarkTodoUnderCursorComplete()
