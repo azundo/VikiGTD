@@ -613,6 +613,10 @@ call matchadd("DueTomorrow", strftime("%Y-%m-%d", localtime() + 24*60*60))
 highlight VikiGTDProject ctermfg=40
 call matchadd("VikiGTDProject", '#\w\+\s*$')
 
+highlight VikiGTDCompletedItem ctermfg=236
+call matchadd("VikiGTDCompletedItem", '^\s\+-\_.\{-}\(\(\n\s\+[@-]\)\|^\s*$\)\@=')
+" call matchadd("VikiGTDCompletedItem", '^\*\*\s\{-}To[dD]o\_.*\(^\S\)\@!^\s\+-\_.\{-}\(\(\n\s\+[@-]\)\|^\s*$\)\@=')
+
 " Tests {{{1
 if exists('UnitTest')
     " Test Todo {{{2
