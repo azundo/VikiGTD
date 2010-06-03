@@ -101,7 +101,16 @@ function s:Todo.Delete() dict "{{{3
             let project_file_contents = readfile(project_file)
             call remove(project_file_contents, self.starting_line - 1, self.starting_line - 1 + self.GetTreeLineLength() - 1)
             call writefile(project_file_contents, project_file)
-            echo "Removed todo from " . self.project_name . '.'
+            let msg_txt = "Removed \"$todo$\" from " . self.project_name . '.'
+            if strlen(msg_txt) + strlen(self.text) - 6 < 80
+                let todo_txt = self.text
+            else
+                " remove strlen(msg_text) then add 6 for the $todo that will
+                " be replaced, then remove 3 for the ellipsis, then remove 1
+                " because we're 0 indexed
+                let todo_txt = self.text[:(80 - strlen(msg_txt) + 6 - 3 - 1)] . '...'
+            endif
+            echo substitute(msg_txt, '\$todo\$', todo_txt, '')
             return 1
         else
             echo "No starting_line for todo - could not remove."
@@ -521,8 +530,10 @@ function! s:MarkTodoUnderCursorComplete() "{{{2
     if current_todo.project_name != ""
         try
             let project_todo_list = s:ScrapeProject(current_todo.project_name)
+            let todo_found = 0
             for todo in project_todo_list.todos
                 if todo.text == current_todo.text
+                    let todo_found = 1
                     let deleted = todo.Delete()
                     if deleted == 0
                         let c = confirm("Todo could not be deleted from project file. Still mark as completed?", "&Yes\n&No")
@@ -533,11 +544,12 @@ function! s:MarkTodoUnderCursorComplete() "{{{2
                     break
                 endif
             endfor
+            if todo_found == 0
+                echo 'Could not find todo in project ' . current_todo.project_name '.'
+            endif
         catch /vikiGTDError/
             echo 'Could not find project ' . current_todo.project_name . '. Not removing any todo item.'
         endtry
-    else
-        echo 'Could not identify project for todo, no todo removed.'
     endif
     if current_todo.starting_line != 0
         call setline(current_todo.starting_line, substitute(getline(current_todo.starting_line), '^\(\s*\)@', '\1-', ''))
