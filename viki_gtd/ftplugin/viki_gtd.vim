@@ -603,10 +603,15 @@ noremap <SID>MarkComplete :call <SID>MarkTodoUnderCursorComplete()<CR>
 " endif
 
 " Highlight groups {{{1
-highlight DueToday ctermbg=Green
+highlight VikiDate ctermfg=LightBlue
+call matchadd("VikiDate", '\d\{4\}-\d\{2\}-\d\{2\}')
+highlight DueToday ctermfg=Red
 call matchadd("DueToday", strftime("%Y-%m-%d"))
-highlight DueTomorrow ctermbg=LightBlue
+highlight DueTomorrow ctermfg=202
 call matchadd("DueTomorrow", strftime("%Y-%m-%d", localtime() + 24*60*60))
+
+highlight VikiGTDProject ctermfg=40
+call matchadd("VikiGTDProject", '#\w\+\s*$')
 
 " Tests {{{1
 if exists('UnitTest')
