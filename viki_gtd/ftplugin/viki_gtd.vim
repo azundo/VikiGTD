@@ -365,15 +365,16 @@ function! s:GetProjectIndex(project_name, ...) " {{{2
         let directory = g:vikiGtdProjectsDir
     endif
     let filename = directory
+    let project_name = substitute(a:project_name, '^#', '', '')
     if match(filename, '/$') == -1
         let filename = filename . '/'
     endif
-    if filereadable(filename . a:project_name . '.viki')
-        let filename = filename . a:project_name . '.viki'
-    elseif filereadable(filename . a:project_name . '/Index.viki')
-        let filename = filename . a:project_name . '/Index.viki'
+    if filereadable(filename . project_name . '.viki')
+        let filename = filename . project_name . '.viki'
+    elseif filereadable(filename . project_name . '/Index.viki')
+        let filename = filename . project_name . '/Index.viki'
     else
-        throw "vikiGTDError: Project to be read does not exist."
+        throw "vikiGTDError: Project " . project_name . " does not exist."
     endif
     return filename
 endfunction
@@ -556,6 +557,18 @@ function! s:MarkTodoUnderCursorComplete() "{{{2
     endif
 endfunction
 
+function! s:GoToProject(project_name) "{{{2
+    echo a:project_name
+    try
+        let project_index = s:GetProjectIndex(a:project_name)
+        return 'rightb vsp ' . fnameescape(project_index)
+    catch /vikiGTDError/
+        return 'echo "' . substitute(v:exception, 'vikiGTDError: ', '', '') . '"'
+    catch
+        return "echo \"error opening file: " . v:exception . v:throwpoint . "\""
+    endtry
+endfunction
+
 " Public Functions {{{1
 
 function! VikiGTDGetTodos(filter) "{{{2
@@ -605,6 +618,12 @@ if !hasmapto('<Plug>VikiGTDMarkComplete')
 endif
 noremap <buffer> <script> <unique> <Plug>VikiGTDMarkComplete <SID>MarkComplete
 noremap <SID>MarkComplete :call <SID>MarkTodoUnderCursorComplete()<CR>
+
+if !hasmapto('<Plug>VikiGTDGoToProject')
+    map <buffer> <unique> <LocalLeader>gp <Plug>VikiGTDGoToProject
+endif
+noremap <buffer> <script> <unique> <Plug>VikiGTDGoToProject <SID>GoToProject
+noremap <SID>GoToProject  :<C-R>=<SID>GoToProject(expand("<cword>"))<CR><CR>
 
 " if !exists(":EchoTodoUnderCursor")
 "     command EchoTodoUnderCursor :echo s:GetTodoForLine().text
