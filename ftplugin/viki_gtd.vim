@@ -79,49 +79,54 @@ function! s:Utils.GetSundayForWeek(weektime)
     let offset = str2nr(strftime("%w", a:weektime))
     return a:weektime - (offset * 24 * 60 * 60)
 endfunction
-" Class: Todo {{{2
+" Class: Item {{{2
 "
-let s:Todo = {}
-function! s:Todo.init() dict "{{{3
+let s:Item = {}
+function! s:Item.init() dict "{{{3
     let instance = copy(self)
     let instance.text = ""
     let instance.date = ""
     let instance.project_name = ""
     let instance.is_complete = 0
-    let instance.starting_line = 0
+    let instance.starting_line = -1
     let instance.line_length = 0
     let instance.parent = {}
     let instance.children = []
+    let instance.begin_pattern = '^\s*\([-@]\) '
     return instance
 endfunction
 
-function s:Todo.Delete() dict "{{{3
+function s:Item.Equals(other_item) dict "{{{3
+    return self.text == a:other_item.text
+endfunction
+
+function s:Item.Delete() dict "{{{3
     let project_file = s:GetProjectIndex(self.project_name)
     if filereadable(substitute(project_file, '\(\w\+\.viki\)$', '\.\1\.swp', ''))
         echo "Project file for " . self.project_name . " is open - can't modify."
     else
-        if self.starting_line != 0
+        if self.starting_line != -1
             let project_file_contents = readfile(project_file)
-            call remove(project_file_contents, self.starting_line - 1, self.starting_line - 1 + self.GetTreeLineLength() - 1)
+            call remove(project_file_contents, self.starting_line, self.starting_line + self.GetTreeLineLength() - 1)
             call writefile(project_file_contents, project_file)
-            let msg_txt = "Removed \"$todo$\" from " . self.project_name . '.'
+            let msg_txt = "Removed \"$item$\" from " . self.project_name . '.'
             if strlen(msg_txt) + strlen(self.text) - 6 < 80
-                let todo_txt = self.text
+                let item_txt = self.text
             else
-                " remove strlen(msg_text) then add 6 for the $todo that will
+                " remove strlen(msg_text) then add 6 for the $item that will
                 " be replaced, then remove 3 for the ellipsis, then remove 1
                 " because we're 0 indexed
-                let todo_txt = self.text[:(80 - strlen(msg_txt) + 6 - 3 - 1)] . '...'
+                let item_txt = self.text[:(80 - strlen(msg_txt) + 6 - 3 - 1)] . '...'
             endif
-            echo substitute(msg_txt, '\$todo\$', todo_txt, '')
+            echo substitute(msg_txt, '\$item\$', item_txt, '')
             return 1
         else
-            echo "No starting_line for todo - could not remove."
+            echo "No starting_line for item - could not remove."
         endif
     endif
 endfunction
 
-function s:Todo.GetTreeLineLength() dict " {{{3
+function s:Item.GetTreeLineLength() dict " {{{3
     let line_length = self.line_length
     for child in self.children
         let line_length =  line_length + child.GetTreeLineLength()
@@ -129,22 +134,22 @@ function s:Todo.GetTreeLineLength() dict " {{{3
     return line_length
 endfunction
 
-function! s:Todo.ParseLines(lines, ...) dict "{{{3
+function! s:Item.ParseLines(lines, ...) dict "{{{3
     let self.line_length = len(a:lines)
     let first_line = remove(a:lines, 0)
-    if match(first_line, s:todo_begin) == -1
-        throw "vikiGTDError: Todo item is improperly constructed - first line does not start with a bullet point character (@ or -)."
+    if match(first_line, self.begin_pattern) == -1
+        throw "vikiGTDError: Item is improperly constructed - first line does not start with a bullet point character (@ or -)."
     endif
 
-    if matchlist(first_line, s:todo_begin)[1] == '-'
+    if matchlist(first_line, self.begin_pattern)[1] == '-'
         let self.is_complete = 1
     endif
 
-    let self.text = substitute(first_line, s:todo_begin, '', '')
+    let self.text = substitute(first_line, self.begin_pattern, '', '')
     let self.text = substitute(self.text, '\s*$', '', '')
     for line in a:lines
-        if match(line, s:todo_begin) != -1
-            throw "vikiGTDError: Todo item is improperly constructed - additional starts with a bullet point character (@ or -)."
+        if match(line, self.begin_pattern) != -1
+            throw "vikiGTDError: Item item is improperly constructed - additional starts with a bullet point character (@ or -)."
         endif
        let stripped_line = substitute(substitute(line, '^\s*', '', ''), '\s*$', '', '')
        let self.text = self.text . ' ' . stripped_line
@@ -160,7 +165,7 @@ function! s:Todo.ParseLines(lines, ...) dict "{{{3
     endif
 endfunction
 
-function! s:Todo.Print(...) dict " {{{3
+function! s:Item.Print(...) dict " {{{3
     let indent_level = 0
     let lines = []
     if a:0 > 0
@@ -180,85 +185,90 @@ function! s:Todo.Print(...) dict " {{{3
     return join(lines, "\n")
 endfunction
 
-" Class: TodoList {{{2
 
-let s:TodoList = {}
 
-function! s:TodoList.init() dict "{{{3
+" Class: ItemList {{{2
+
+let s:ItemList = {}
+
+function! s:ItemList.init() dict "{{{3
     let instance = copy(self)
-    let instance.todos = []
+    let instance.items = []
     let instance.project_name = ""
+    let instance.item_class = s:Item
+    let instance.start_pattern = '^\*\*\s*\w\+'
     return instance
 endfunction
 
-function! s:TodoList.AddTodo(lines, parent, starting_line) dict "{{{3
+function! s:ItemList.AddItem(lines, parent, starting_line) dict "{{{3
     if a:lines != []
-        let new_todo = s:Todo.init()
-        call new_todo.ParseLines(a:lines, a:starting_line)
-        let new_todo.project_name = self.project_name
-        call add(self.todos, new_todo)
-        let new_todo.parent = a:parent
+        let new_item = self.item_class.init()
+        call new_item.ParseLines(a:lines, a:starting_line)
+        let new_item.project_name = self.project_name
+        call add(self.items, new_item)
+        let new_item.parent = a:parent
         if has_key(a:parent, 'children')
-            call add(a:parent['children'], new_todo)
+            call add(a:parent['children'], new_item)
         endif
-        return new_todo
+        return new_item
     else
         return {}
     endif
 endfunction
 
-function! s:TodoList.ParseLines(lines) dict "{{{3
+function! s:ItemList.ParseLines(lines, ...) dict "{{{3
     if empty(a:lines)
         return
     endif
-    let lines_for_todo = []
-    let line_counter = 1
-    let current_todo_start = 0
-    " keep track of parent todos in a stack
+    let lines_for_item = []
+    if a:0 > 0
+        let line_counter = a:1
+    else
+        let line_counter = 0
+    endif
+    let current_item_start = 0
+    " keep track of parent items in a stack
     " since we don't have a None in vim, use an empty
     " object (dict) as the top parent
     let parent_stack = [{},]
-    " remove lines before the ** Todo
-    while match(a:lines[0], '^\*\*\s*To[Dd]o') == -1
+    " remove lines before the start_pattern
+    while match(a:lines[0], self.start_pattern) == -1
         call remove(a:lines, 0)
         if empty(a:lines)
             return
         endif
         let line_counter = line_counter + 1
     endwhile
-    " Remove the **Todo line
+    " Remove the start_pattern line
     call remove(a:lines, 0)
     let last_line_indent = -1
     for line in a:lines
         " increment counter at the beginning of the for loop to
         " keep things simple
         " the one-off error that would have happened is negated by
-        " removing the **Todo line and not incrementing the counter then
+        " removing the start_pattern line and not incrementing the counter then
         let line_counter = line_counter + 1
         let line_indent = s:Utils.LineIndent(line)
 
-        if line_indent == 0 
-            if strlen(line) != 0
-                " break if we are at a line with an indent of 0 that is not
-                " empty
-                break
-            else
-                " continue if the line is just empty
-                continue
-            endif
+        if match(line, '^\S') != -1
+            " break if we are at a line with non-space as the first character
+            break
+        elseif match(line, '^\s*$') != -1
+            " continue if we are on a blank line
+            continue
         endif
 
         if line_indent != last_line_indent + 2
-            " here we are at a new todo item but at the same level, so add the old one
-            let new_todo = self.AddTodo(lines_for_todo, parent_stack[0], current_todo_start)
-            let lines_for_todo = []
-            let current_todo_start = line_counter
+            " here we are at a new item item but at the same level, so add the old one
+            let new_item = self.AddItem(lines_for_item, parent_stack[0], current_item_start)
+            let lines_for_item = []
+            let current_item_start = line_counter
             " Adjust the parent_stack appropriately based on indent level
             " NOTE: This code assumes 4 space indenting!!!
             if line_indent > last_line_indent
-                " we are indenting so we need to add the last todo as the
+                " we are indenting so we need to add the last item as the
                 " current parent
-                call insert(parent_stack, new_todo)
+                call insert(parent_stack, new_item)
             elseif line_indent < last_line_indent
                 " we are dedenting so we need to remove the appropriate
                 " parents
@@ -268,53 +278,70 @@ function! s:TodoList.ParseLines(lines) dict "{{{3
             endif
             let last_line_indent = line_indent
         endif
-        call add(lines_for_todo, line)
+        call add(lines_for_item, line)
     endfor
-    " parse the final todo item after all lines have been gone through
-    call self.AddTodo(lines_for_todo, parent_stack[0], current_todo_start)
+    " parse the final item item after all lines have been gone through
+    call self.AddItem(lines_for_item, parent_stack[0], current_item_start)
 endfunction
 
-function! s:TodoList.FilterByDate(start_date, end_date) dict "{{{3
-    let filtered_list = copy(self.todos)
+function! s:ItemList.GetListForLine(line_no, ...)
+    if a:0 > 0
+        let lines = a:1
+    else
+        let lines = getline(1, '$') " current buffer
+        let a:line_no = a:line_no - 1 " adjust to be zero based
+    endif
+    let current_line = a:line_no
+    while current_line >= 0
+        if match(lines[current_line], self.start_pattern) != -1
+            return self.ParseLines(lines[current_line :], current_line)
+        endif
+        let current_line = current_line - 1
+    endwhile
+    throw "vikiGTDError: No list on given line."
+endfunction
+
+function! s:ItemList.FilterByDate(start_date, end_date) dict "{{{3
+    let filtered_list = copy(self.items)
     let filter_function = 'v:val.date != "" && s:Utils.CompareDates(v:val.date, a:start_date) >= 0 && s:Utils.CompareDates(v:val.date, a:end_date) <= 0'
     call filter(filtered_list, filter_function)
-    let new_list = s:TodoList.init()
-    let new_list.todos = filtered_list
+    let new_list =self.init()
+    let new_list.items = filtered_list
     return new_list
 endfunction
 
-function! s:TodoList.GetDueToday() dict "{{{3
+function! s:ItemList.GetDueToday() dict "{{{3
     let today = strftime("%Y-%m-%d")
     return self.FilterByDate(today, today)
 endfunction
 
-function! s:TodoList.GetDueTomorrow() dict "{{{3
+function! s:ItemList.GetDueTomorrow() dict "{{{3
     let tomorrow = strftime("%Y-%m-%d", localtime() + 24*60*60)
     return self.FilterByDate(tomorrow, tomorrow)
 endfunction
 
-function! s:TodoList.GetDueTodayOrTomorrow() dict "{{{3
+function! s:ItemList.GetDueTodayOrTomorrow() dict "{{{3
     let today = strftime("%Y-%m-%d")
     let tomorrow = strftime("%Y-%m-%d", localtime() + 24*60*60)
     return self.FilterByDate(today, tomorrow)
 endfunction
 
-function! s:TodoList.GetDueThisWeek() dict "{{{3
+function! s:ItemList.GetDueThisWeek() dict "{{{3
     let this_week_sunday = strftime("%Y-%m-%d", s:Utils.GetSundayForWeek(localtime()))
     let next_week_sunday = strftime("%Y-%m-%d", s:Utils.GetSundayForWeek(localtime() + 7*24*60*60))
     return self.FilterByDate(this_week_sunday, next_week_sunday)
 endfunction
 
-function! s:TodoList.GetOverdue() dict "{{{3
+function! s:ItemList.GetOverdue() dict "{{{3
     let yesterday = strftime("%Y-%m-%d", localtime() - 24*60*60)
     return self.FilterByDate("0000-00-00", yesterday)
 endfunction
 
-function! s:TodoList.Print(...) dict "{{{3
+function! s:ItemList.Print(...) dict "{{{3
     let lines = []
     if a:0 > 0 " we'll print the parents
         let temp = []
-        for t in self.todos
+        for t in self.items
             if t.parent == {}
                 call add(temp, t)
             else
@@ -327,12 +354,29 @@ function! s:TodoList.Print(...) dict "{{{3
             call add(lines, t.Print(4, a:1, 1))
         endfor
     else
-        for t in self.todos
+        for t in self.items
             call add(lines, t.Print(4))
         endfor
     endif
     return join(lines, "\n")
 endfunction
+
+" Class: Todo {{{2
+let s:Todo = copy(s:Item)
+
+" Class: TodoList {{{2
+let s:TodoList = copy(s:ItemList)
+
+function! s:TodoList.init() dict
+    let instance = s:ItemList.init()
+    call extend(instance, copy(self), "force")
+    let instance.item_class = s:Todo
+    let instance.AddTodo = instance.AddItem
+    let instance.start_pattern = '^\*\*\s*To[dD]o'
+    return instance
+endfunction
+
+
 
 " Private Functions {{{1
 "
@@ -416,7 +460,7 @@ function! s:CombineTodoLists(lists) "{{{2
         throw "vikiGTDError: CombineTodoLists takes only a dictionary or list."
     endif
     for l in ls
-        call extend(combined_list.todos, l.todos)
+        call extend(combined_list.items, l.items)
     endfor
     return combined_list
 endfunction
@@ -546,7 +590,7 @@ function! s:MarkTodoUnderCursorComplete() "{{{2
         try
             let project_todo_list = s:ScrapeProject(current_todo.project_name)
             let todo_found = 0
-            for todo in project_todo_list.todos
+            for todo in project_todo_list.items
                 if todo.text == current_todo.text
                     let todo_found = 1
                     let deleted = todo.Delete()
@@ -566,8 +610,8 @@ function! s:MarkTodoUnderCursorComplete() "{{{2
             echo 'Could not find project ' . current_todo.project_name . '. Not removing any todo item.'
         endtry
     endif
-    if current_todo.starting_line != 0
-        call setline(current_todo.starting_line, substitute(getline(current_todo.starting_line), '^\(\s*\)@', '\1-', ''))
+    if current_todo.starting_line != -1
+        call setline(current_todo.starting_line + 1, substitute(getline(current_todo.starting_line + 1), '^\(\s*\)@', '\1-', ''))
     endif
 endfunction
 
@@ -716,7 +760,6 @@ function! b:AddOverdueDates()
     endfor
     for date in dates
         if str2nr(substitute(date, '-', '', 'g')) < today
-            echo 'adding overdue date ' . date
             call matchadd("VikiGTDOverdueDate", date)
             " call matchadd("VikiGTDOverdueItem", '^\s\+@\_.\{-}' . date . '\_.\{-}\(\(\n\s\+[@-]\)\|^\s*$\)\@=')
         endif
@@ -727,6 +770,28 @@ call b:AddOverdueDates()
 
 " Tests {{{1
 if exists('UnitTest')
+    " Test ItemList {{{2
+    "
+    "
+    let b:test_itemlist = UnitTest.init("TestItemList")
+    
+    function! b:test_itemlist.TestGetListForLine() dict
+        let lines = readfile(s:Utils.GetCurrentDirectory() . '/fixtures/genList.txt')
+        let new_list = s:ItemList.init()
+        call new_list.GetListForLine(0, lines) " make it easy to start
+        call self.AssertEquals(9, len(new_list.items))
+
+        let new_list = s:ItemList.init()
+        call new_list.GetListForLine(5, lines) " make it easy to start
+        call self.AssertEquals(9, len(new_list.items))
+
+        let new_list = s:ItemList.init()
+        call new_list.GetListForLine(14, lines) " make it easy to start
+        call self.AssertEquals(3, len(new_list.items))
+        call self.AssertEquals(15, new_list.items[0].starting_line)
+
+    endfunction
+    "
     " Test Todo {{{2
     let b:test_todo = UnitTest.init("TestTodo")
     
@@ -776,16 +841,16 @@ if exists('UnitTest')
         let lines = readfile(current_dir . '/fixtures/standardTodo.txt')
         let new_todolist = s:TodoList.init()
         call new_todolist.ParseLines(lines)
-        call self.AssertEquals(len(new_todolist.todos), 3, "TodoList should have three items.")
-        call self.AssertEquals(new_todolist.todos[0].text, "A random item", "First todo item.")
-        call self.AssertEquals(new_todolist.todos[0].starting_line, 2)
-        call self.AssertEquals(new_todolist.todos[0].line_length, 1)
-        call self.AssertEquals(new_todolist.todos[1].text, "Another random item that is longer than a single line of text so we can parse this one properly", "Second todo item.")
-        call self.AssertEquals(new_todolist.todos[1].starting_line, 3)
-        call self.AssertEquals(new_todolist.todos[1].line_length, 2)
-        call self.AssertEquals(new_todolist.todos[2].text, "Somthing here", "Third todo item.")
-        call self.AssertEquals(new_todolist.todos[2].starting_line, 5)
-        call self.AssertEquals(new_todolist.todos[2].line_length, 1)
+        call self.AssertEquals(len(new_todolist.items), 3, "TodoList should have three items.")
+        call self.AssertEquals(new_todolist.items[0].text, "A random item", "First todo item.")
+        call self.AssertEquals(new_todolist.items[0].starting_line, 1)
+        call self.AssertEquals(new_todolist.items[0].line_length, 1)
+        call self.AssertEquals(new_todolist.items[1].text, "Another random item that is longer than a single line of text so we can parse this one properly", "Second todo item.")
+        call self.AssertEquals(new_todolist.items[1].starting_line, 2)
+        call self.AssertEquals(new_todolist.items[1].line_length, 2)
+        call self.AssertEquals(new_todolist.items[2].text, "Somthing here", "Third todo item.")
+        call self.AssertEquals(new_todolist.items[2].starting_line, 4)
+        call self.AssertEquals(new_todolist.items[2].line_length, 1)
     endfunction
     
     function! b:test_todolist.TestTougherFile() dict "{{{3
@@ -794,14 +859,14 @@ if exists('UnitTest')
         let lines = readfile(current_dir . '/fixtures/tougherTodo.txt')
         let new_todolist = s:TodoList.init()
         call new_todolist.ParseLines(lines)
-        call self.AssertEquals(len(new_todolist.todos), 6, "TodoList should have three items.")
-        call self.AssertEquals(new_todolist.todos[3].parent, new_todolist.todos[2])
-        call self.AssertEquals(new_todolist.todos[0].parent, {})
-        call self.AssertEquals(new_todolist.todos[1].parent, {})
-        call self.AssertEquals(new_todolist.todos[2].parent, {})
-        call self.AssertEquals(new_todolist.todos[4].parent, {})
-        call self.AssertEquals(new_todolist.todos[5].parent, {})
-        call self.AssertEquals(new_todolist.todos[2].children[0], new_todolist.todos[3])
+        call self.AssertEquals(len(new_todolist.items), 6, "TodoList should have three items.")
+        call self.AssertEquals(new_todolist.items[3].parent, new_todolist.items[2])
+        call self.AssertEquals(new_todolist.items[0].parent, {})
+        call self.AssertEquals(new_todolist.items[1].parent, {})
+        call self.AssertEquals(new_todolist.items[2].parent, {})
+        call self.AssertEquals(new_todolist.items[4].parent, {})
+        call self.AssertEquals(new_todolist.items[5].parent, {})
+        call self.AssertEquals(new_todolist.items[2].children[0], new_todolist.items[3])
     endfunction
     
     function! b:test_todolist.TestDateFilter() dict "{{{3
@@ -814,13 +879,13 @@ if exists('UnitTest')
         call new_todolist.ParseLines(lines)
     
         let filtered_todos = new_todolist.FilterByDate('0000-00-00', '9999-99-99')
-        call self.AssertEquals(10, len(filtered_todos.todos))
+        call self.AssertEquals(10, len(filtered_todos.items))
     
         let filtered_todos = new_todolist.FilterByDate('2010-01-01', '2010-01-31')
-        call self.AssertEquals(7, len(filtered_todos.todos))
+        call self.AssertEquals(7, len(filtered_todos.items))
     
         let filtered_todos = new_todolist.FilterByDate('2010-01-01', '2010-01-03')
-        call self.AssertEquals(3, len(filtered_todos.todos))
+        call self.AssertEquals(3, len(filtered_todos.items))
     endfunction
     
     function! b:test_todolist.TestPrinting() dict "{{{3
@@ -834,7 +899,7 @@ if exists('UnitTest')
         " echo new_todolist.Print(1)
     
         " let filtered_todos = new_todolist.FilterByDate('2010-01-01', '2010-01-31')
-        " call self.AssertEquals(7, len(filtered_todos.todos))
+        " call self.AssertEquals(7, len(filtered_todos.items))
     endfunction
     
     " Test Utils {{{2
@@ -876,7 +941,7 @@ if exists('UnitTest')
 
     function! b:test_scrape.TestProjectScrape() dict
         let todolist = s:ScrapeProject('proj1', s:Utils.GetCurrentDirectory().'/fixtures/projects')
-        call self.AssertEquals(3, len(todolist.todos))
+        call self.AssertEquals(3, len(todolist.items))
     endfunction
 
     function! b:test_scrape.TestProjectScrapeName() dict
@@ -893,6 +958,7 @@ if exists('UnitTest')
         call self.AssertNotEquals(-1, index(daily_reviews, project_dir . '/DailyProject.viki'), string(daily_reviews) . ' does not contain DailyProject.viki')
         call self.AssertNotEquals(-1, index(daily_reviews, project_dir . '/MajorDailyProject/Index.viki'), string(daily_reviews) . ' does not contain MajorDailyProject/Index.viki')
     endfunction
+
     
     " Test Suite for testing all. Buffer var so we can run from command line {{{2
     let b:test_all = TestSuite.init("TestVikiGTD")
@@ -900,6 +966,7 @@ if exists('UnitTest')
     call b:test_all.AddUnitTest(b:test_todolist)
     call b:test_all.AddUnitTest(b:test_utils)
     call b:test_all.AddUnitTest(b:test_scrape)
+    call b:test_all.AddUnitTest(b:test_itemlist)
     
     " Add objects to FunctionRegister {{{2
     call FunctionRegister.AddObject(s:Utils, 'Utils')
