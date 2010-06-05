@@ -222,32 +222,33 @@ function! s:ItemList.ParseLines(lines, ...) dict "{{{3
     endif
     let lines_for_item = []
     if a:0 > 0
-        let line_counter = a:1
+        let line_offset = a:1
     else
-        let line_counter = 0
+        let line_offset = 0
     endif
+    let line_counter = 0
     let current_item_start = 0
     " keep track of parent items in a stack
     " since we don't have a None in vim, use an empty
     " object (dict) as the top parent
     let parent_stack = [{},]
     " remove lines before the start_pattern
-    while match(a:lines[0], self.start_pattern) == -1
-        call remove(a:lines, 0)
-        if empty(a:lines)
+    while match(a:lines[line_counter], self.start_pattern) == -1
+        " call remove(a:lines, 0)
+        let line_counter = line_counter + 1
+        if line_counter == len(a:lines)
             return
         endif
-        let line_counter = line_counter + 1
     endwhile
-    " Remove the start_pattern line
-    call remove(a:lines, 0)
+    let self.starting_line = line_counter + line_offset
     let last_line_indent = -1
-    for line in a:lines
+    while line_counter < len(a:lines) - 1
         " increment counter at the beginning of the for loop to
         " keep things simple
         " the one-off error that would have happened is negated by
         " removing the start_pattern line and not incrementing the counter then
         let line_counter = line_counter + 1
+        let line = a:lines[line_counter]
         let line_indent = s:Utils.LineIndent(line)
 
         if match(line, '^\S') != -1
@@ -258,9 +259,9 @@ function! s:ItemList.ParseLines(lines, ...) dict "{{{3
             continue
         endif
 
-        if line_indent != last_line_indent + 2
+        if line_indent != last_line_indent + 2 
             " here we are at a new item item but at the same level, so add the old one
-            let new_item = self.AddItem(lines_for_item, parent_stack[0], current_item_start)
+            let new_item = self.AddItem(lines_for_item, parent_stack[0], current_item_start + line_offset)
             let lines_for_item = []
             let current_item_start = line_counter
             " Adjust the parent_stack appropriately based on indent level
@@ -279,9 +280,13 @@ function! s:ItemList.ParseLines(lines, ...) dict "{{{3
             let last_line_indent = line_indent
         endif
         call add(lines_for_item, line)
-    endfor
+    endwhile
     " parse the final item item after all lines have been gone through
-    call self.AddItem(lines_for_item, parent_stack[0], current_item_start)
+    call self.AddItem(lines_for_item, parent_stack[0], current_item_start + line_offset)
+    while match(a:lines[line_counter], '^\(\s*\|\S.*\)$') != -1
+        let line_counter = line_counter -1
+    endwhile
+    let self.ending_line = line_counter + line_offset
 endfunction
 
 function! s:ItemList.GetListForLine(line_no, ...)
@@ -784,11 +789,14 @@ if exists('UnitTest')
         let new_list = s:ItemList.init()
         call new_list.GetListForLine(5, lines) " make it easy to start
         call self.AssertEquals(9, len(new_list.items))
+        call self.AssertEquals(0, new_list.starting_line)
+        call self.AssertEquals(12, new_list.ending_line)
 
         let new_list = s:ItemList.init()
         call new_list.GetListForLine(14, lines) " make it easy to start
         call self.AssertEquals(3, len(new_list.items))
-        call self.AssertEquals(15, new_list.items[0].starting_line)
+        call self.AssertEquals(14, new_list.starting_line)
+        call self.AssertEquals(17, new_list.ending_line)
 
     endfunction
     "
