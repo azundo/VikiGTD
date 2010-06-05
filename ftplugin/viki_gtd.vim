@@ -699,6 +699,31 @@ call matchadd("VikiGTDProject", '#\w\+\s*$')
 highlight VikiGTDCompletedItem ctermfg=236
 call matchadd("VikiGTDCompletedItem", '^\s\+-\_.\{-}\(\(\n\s\+[@-]\)\|^\s*$\)\@=')
 " call matchadd("VikiGTDCompletedItem", '^\*\*\s\{-}To[dD]o\_.*\(^\S\)\@!^\s\+-\_.\{-}\(\(\n\s\+[@-]\)\|^\s*$\)\@=')
+"
+" Add match
+highlight VikiGTDOverdueDate cterm=Bold ctermfg=Red
+" highlight VikiGTDOverdueItem cterm=Underline
+function! b:AddOverdueDates()
+    let current_lines = getline(1, '$')
+    let dates = []
+    let today = str2nr(strftime("%Y%m%d"))
+    " assume only one date per line for now...
+    for line in current_lines
+        let date = matchstr(line, '\d\{4}-\d\{2}-\d\{2}')
+        if date != ""
+            call add(dates, date)
+        endif
+    endfor
+    for date in dates
+        if str2nr(substitute(date, '-', '', 'g')) < today
+            echo 'adding overdue date ' . date
+            call matchadd("VikiGTDOverdueDate", date)
+            " call matchadd("VikiGTDOverdueItem", '^\s\+@\_.\{-}' . date . '\_.\{-}\(\(\n\s\+[@-]\)\|^\s*$\)\@=')
+        endif
+    endfor
+endfunction
+
+call b:AddOverdueDates()
 
 " Tests {{{1
 if exists('UnitTest')
