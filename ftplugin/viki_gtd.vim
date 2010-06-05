@@ -765,7 +765,7 @@ if exists('UnitTest')
     let b:test_utils = UnitTest.init("TestUtils")
     function! b:test_utils.TestGetDirectory() dict
         let current_dir = s:Utils.GetCurrentDirectory()
-        call self.AssertEquals(current_dir, '/home/benjamin/Code/vimscripts/viki_gtd/ftplugin', 'current_dir and path should be equal.') " Change this path when script is installed!
+        call self.AssertEquals(current_dir, '/home/benjamin/Code/vikiGTD/ftplugin', 'current_dir and path should be equal.') " Change this path when script is installed!
     endfunction
     
     function! b:test_utils.TestLineIndent() dict
@@ -809,13 +809,12 @@ if exists('UnitTest')
         " echo todolist.Print(1)
     endfunction
     
-    " Easy function for testing all {{{2
-    function! b:TestAll()
-        call b:test_todo.RunTests()
-        call b:test_todolist.RunTests()
-        call b:test_utils.RunTests()
-        call b:test_scrape.RunTests()
-    endfunction
+    " Test Suite for testing all. Buffer var so we can run from command line {{{2
+    let b:test_all = TestSuite.init("TestVikiGTD")
+    call b:test_all.AddUnitTest(b:test_todo)
+    call b:test_all.AddUnitTest(b:test_todolist)
+    call b:test_all.AddUnitTest(b:test_utils)
+    call b:test_all.AddUnitTest(b:test_scrape)
     
     " Add objects to FunctionRegister {{{2
     call FunctionRegister.AddObject(s:Utils, 'Utils')
