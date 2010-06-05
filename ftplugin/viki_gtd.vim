@@ -5,8 +5,11 @@
 "
 " Some general niceties
 " Leave this out for now so I can easily source file
-if exists('b:loaded_viki_gtd')
-    finish
+if !exists('b:dev_mode')
+    if exists('b:loaded_viki_gtd')
+        echo "not re-loading viki_gtd"
+        finish
+    endif
 endif
 let b:loaded_viki_gtd = 1
 
