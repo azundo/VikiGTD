@@ -494,11 +494,22 @@ function! s:GetTodos(filter) "{{{2
     return filtered_todos
 endfunction
 
+
 function! s:PrintTodos(filter) "{{{2
     let filtered_todos = s:GetTodos(a:filter)
     let split_todos = split(filtered_todos.Print(1), "\n")
     call append(line('.'), split_todos)
     exe "normal V".len(split_todos)."jgq"
+endfunction
+
+function! s:OpenTodosInSp(filter) "{{{2
+    let commands = []
+    call add(commands, "rightb vsp /tmp/vikiList.viki")
+    call add(commands, "set buftype=nofile")
+    call add(commands, "set bufhidden=delete")
+    call add(commands, "setlocal noswapfile")
+    call add(commands, "PrintTodos")
+    return ':' . join(commands, ' | ')
 endfunction
 
 function! s:GetTodoForLine(...) "{{{2
@@ -676,6 +687,34 @@ endfunction
 "
 " Commands {{{2
 "
+if !exists(":Todos")
+    exe "command Todos " . s:OpenTodosInSp("todayandtomorrow")
+endif
+
+if !exists(":TodosToday")
+    exe "command TodosToday " . s:OpenTodosInSp('today')
+endif
+
+if !exists(":TodosThisWeek")
+     exe "command TodosThisWeek " . s:OpenTodosInSp('thisweek')
+endif
+
+if !exists(":TodosTomorrow")
+     exe "command TodosTomorrow " . s:OpenTodosInSp('tomorrow')
+endif
+
+if !exists(":TodosTodayAndTomorrow")
+    exe "command TodosTodayAndTomorrow " . s:OpenTodosInSp('todayandtomorrow')
+endif
+
+if !exists(":TodosOverdue")
+    exe "command TodosOverdue " . s:OpenTodosInSp('overdue')
+endif
+
+if !exists(":TodosAll")
+    exe "command TodosAll " . s:OpenTodosInSp('all')
+endif
+
 if !exists(":PrintTodos")
     command PrintTodos :call s:PrintTodos("todayandtomorrow")
 endif
