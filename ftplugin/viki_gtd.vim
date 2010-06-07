@@ -567,7 +567,7 @@ function! s:GetTodoForLine(...) "{{{2
 
     let todo_lines = getline(first_line_no, current_line_no - 1)
     let current_todo = s:Todo.init()
-    call current_todo.ParseLines(todo_lines, first_line_no)
+    call current_todo.ParseLines(todo_lines, first_line_no - 1) " A dirty hack for now - TODO refactor to be similar to ItemList.ParseLines
     return current_todo
 endfunction
 
