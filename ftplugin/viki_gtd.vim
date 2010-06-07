@@ -476,18 +476,20 @@ endfunction
 function! s:GetTodos(filter) "{{{2
     let all_todo_lists = s:ScrapeProjectDir()
     let all_todos_list = s:CombineTodoLists(all_todo_lists)
-    if a:filter == 'today'
+    if a:filter == 'Today'
         let filtered_todos = all_todos_list.GetDueToday()
-    elseif a:filter == 'todayandtomorrow'
+    elseif a:filter == 'TodayAndTomorrow'
         let filtered_todos = all_todos_list.GetDueTodayOrTomorrow()
-    elseif a:filter == 'tomorrow'
+    elseif a:filter == 'Tomorrow'
         let filtered_todos = all_todos_list.GetDueTomorrow()
-    elseif a:filter == 'overdue'
+    elseif a:filter == 'Overdue'
         let filtered_todos = all_todos_list.GetOverdue()
-    elseif a:filter == 'thisweek'
+    elseif a:filter == 'ThisWeek'
         let filtered_todos = all_todos_list.GetDueThisWeek()
-    elseif a:filter == 'all'
+    elseif a:filter == 'All'
         let filtered_todos = all_todos_list
+    elseif a:filter == ''
+        let filtered_todos = all_todos_list.GetDueTodayOrTomorrow()
     else
         let filtered_todos = all_todos_list
     endif
@@ -508,7 +510,7 @@ function! s:OpenTodosInSp(filter) "{{{2
     call add(commands, "set buftype=nofile")
     call add(commands, "set bufhidden=delete")
     call add(commands, "setlocal noswapfile")
-    call add(commands, "PrintTodos")
+    call add(commands, "PrintTodos" . a:filter)
     return ':' . join(commands, ' | ')
 endfunction
 
@@ -687,61 +689,67 @@ endfunction
 "
 " Commands {{{2
 "
-if !exists(":Todos")
-    exe "command Todos " . s:OpenTodosInSp("todayandtomorrow")
-endif
+let s:todo_types = ['', 'Today', 'Tomorrow', 'ThisWeek', 'TodayAndTomorrow', 'Overdue', 'All']
+for todo_type in s:todo_types
 
-if !exists(":TodosToday")
-    exe "command TodosToday " . s:OpenTodosInSp('today')
-endif
+    if !exists(":Todos" . todo_type)
+        exe "command Todos" . todo_type .  " " . s:OpenTodosInSp(todo_type)
+    endif
 
-if !exists(":TodosThisWeek")
-     exe "command TodosThisWeek " . s:OpenTodosInSp('thisweek')
-endif
+    if !exists(":PrintTodos" . todo_type)
+        exe "command PrintTodos" . todo_type . " :call s:PrintTodos(\"" . todo_type . "\")"
+    endif
 
-if !exists(":TodosTomorrow")
-     exe "command TodosTomorrow " . s:OpenTodosInSp('tomorrow')
-endif
+endfor
 
-if !exists(":TodosTodayAndTomorrow")
-    exe "command TodosTodayAndTomorrow " . s:OpenTodosInSp('todayandtomorrow')
-endif
+" if !exists(":TodosToday")
+"     exe "command TodosToday " . s:OpenTodosInSp('today')
+" endif
+" 
+" if !exists(":TodosThisWeek")
+"      exe "command TodosThisWeek " . s:OpenTodosInSp('thisweek')
+" endif
+" 
+" if !exists(":TodosTomorrow")
+"      exe "command TodosTomorrow " . s:OpenTodosInSp('tomorrow')
+" endif
+" 
+" if !exists(":TodosTodayAndTomorrow")
+"     exe "command TodosTodayAndTomorrow " . s:OpenTodosInSp('todayandtomorrow')
+" endif
+" 
+" if !exists(":TodosOverdue")
+"     exe "command TodosOverdue " . s:OpenTodosInSp('overdue')
+" endif
+" 
+" if !exists(":TodosAll")
+"     exe "command TodosAll " . s:OpenTodosInSp('all')
+" endif
 
-if !exists(":TodosOverdue")
-    exe "command TodosOverdue " . s:OpenTodosInSp('overdue')
-endif
 
-if !exists(":TodosAll")
-    exe "command TodosAll " . s:OpenTodosInSp('all')
-endif
-
-if !exists(":PrintTodos")
-    command PrintTodos :call s:PrintTodos("todayandtomorrow")
-endif
-
-if !exists(":PrintTodosToday")
-    command PrintTodosToday :call s:PrintTodos('today')
-endif
-
-if !exists(":PrintTodosThisWeek")
-    command PrintTodosThisWeek :call s:PrintTodos('thisweek')
-endif
-
-if !exists(":PrintTodosTomorrow")
-    command PrintTodosTomorrow :call s:PrintTodos('tomorrow')
-endif
-
-if !exists(":PrintTodosTodayAndTomorrow")
-    command PrintTodosTodayAndTomorrow :call s:PrintTodos('todayandtomorrow')
-endif
-
-if !exists(":PrintTodosOverdue")
-    command PrintTodosOverdue :call s:PrintTodos('overdue')
-endif
-
-if !exists(":PrintTodosAll")
-    command PrintTodosAll :call s:PrintTodos('all')
-endif
+" if !exists(":PrintTodosToday")
+"     command PrintTodosToday :call s:PrintTodos('today')
+" endif
+" 
+" if !exists(":PrintTodosThisWeek")
+"     command PrintTodosThisWeek :call s:PrintTodos('thisweek')
+" endif
+" 
+" if !exists(":PrintTodosTomorrow")
+"     command PrintTodosTomorrow :call s:PrintTodos('tomorrow')
+" endif
+" 
+" if !exists(":PrintTodosTodayAndTomorrow")
+"     command PrintTodosTodayAndTomorrow :call s:PrintTodos('todayandtomorrow')
+" endif
+" 
+" if !exists(":PrintTodosOverdue")
+"     command PrintTodosOverdue :call s:PrintTodos('overdue')
+" endif
+" 
+" if !exists(":PrintTodosAll")
+"     command PrintTodosAll :call s:PrintTodos('all')
+" endif
 
 
 if !exists(":MarkTodoUnderCursorComplete")
