@@ -253,6 +253,9 @@ function! s:ItemList.ParseLines(lines, ...) dict "{{{3
 
         if match(line, '^\S') != -1
             " break if we are at a line with non-space as the first character
+            " remove a line from the line counter so we are at the last line
+            " in the list
+            let line_counter = line_counter - 1
             break
         elseif match(line, '^\s*$') != -1
             " continue if we are on a blank line
@@ -283,7 +286,7 @@ function! s:ItemList.ParseLines(lines, ...) dict "{{{3
     endwhile
     " parse the final item item after all lines have been gone through
     call self.AddItem(lines_for_item, parent_stack[0], current_item_start + line_offset)
-    while match(a:lines[line_counter], '^\(\s*\|\S.*\)$') != -1
+    while match(a:lines[line_counter], '^\(\s*\|\S.*\)$') != -1 && match(a:lines[line_counter], self.start_pattern) == -1
         let line_counter = line_counter -1
     endwhile
     let self.ending_line = line_counter + line_offset
@@ -965,6 +968,12 @@ if exists('UnitTest')
         " echo "Daily reviews:" . string(daily_reviews)
         call self.AssertNotEquals(-1, index(daily_reviews, project_dir . '/DailyProject.viki'), string(daily_reviews) . ' does not contain DailyProject.viki')
         call self.AssertNotEquals(-1, index(daily_reviews, project_dir . '/MajorDailyProject/Index.viki'), string(daily_reviews) . ' does not contain MajorDailyProject/Index.viki')
+    endfunction
+
+    function! b:test_scrape.TestScrapeProjEmptyTodo() dict
+        let todolist = s:ScrapeProject('EmptyTodo', s:Utils.GetCurrentDirectory().'/fixtures/projects')
+        call self.AssertEquals(8, todolist.starting_line)
+        call self.AssertEquals(8, todolist.ending_line)
     endfunction
 
     
