@@ -1,37 +1,45 @@
+if exists('g:vikiAutoCommandsLoaded')
+    finish
+endif
+let g:vikiAutoCommandsLoaded = 1
+if !exists('g:vikiGtdProjectsDir')
+    finish
+endif
+
+function! s:GetProjectsIndexes(...)
+    if a:0 > 0
+        let directory = a:1
+    else
+        let directory = g:vikiGtdProjectsDir
+    endif
+    let index_files = split(globpath(directory, '**/Index.viki'), '\n')
+    let standalone_projects = split(globpath(directory, '*.viki'), '\n')
+    " Add the files together
+    let index_files = extend(index_files, standalone_projects)
+    " remove the projects/Index.viki
+    call filter(index_files, 'v:val != "' . directory . '/Index.viki"')
+    return index_files
+endfunction
+
 function! s:AutoSetProjectInterVikis()
-python << EOF
-import vim, os
-home_dir = os.path.expandvars('$HOME')
-projects_path = os.path.join(home_dir, 'Wikis', 'projects')
-def is_valid_interviki(path):
-    """ Checks to make sure that the path is a directory and contains an
-        Index.viki.
-    """
-    return os.path.isdir(path) and os.path.exists(os.path.join(path, 'Index.viki'))
-def set_up_intervikis(projects_path):
-    """
-    Sets up the intervikis after checking to make sure the projects_path exists.
-    """
-    if not os.path.exists(projects_path):
+    if !exists('g:vikiGtdProjectsDir')
         return
-    projects_contents = os.listdir(projects_path)
-    
-    project_dirs = [entry for entry in projects_contents if is_valid_interviki(os.path.join(projects_path, entry))]
-    for dir in project_dirs:
-        viki_name = dir.upper()
-        # not using the projects_path here since it uses os specific path separator
-        # and vim doesn't want that.
-        viki_location = 'let g:vikiInter%s = $HOME."/Wikis/projects/%s"' % (viki_name, dir)
-        viki_suffix = 'let g:vikiInter%s_suffix = ".viki"' % viki_name
-        # this command is what we really want at the end of the day - allows us
-        # to type :PROJECTNAME and get the project index
-        viki_command = 'command -bang -nargs=? -complete=customlist,viki#EditComplete %s call viki#Edit(empty(<q-args>) ? "%s::Index" : viki#InterEditArg("%s", <q-args>), "<bang>")' % (dir, viki_name, viki_name)
-        # execute the commands
-        vim.command(viki_location)
-        vim.command(viki_suffix)
-        vim.command(viki_command)
-set_up_intervikis(projects_path)
-EOF
+    endif
+    let index_files = s:GetProjectsIndexes()
+    for index_file in index_files
+        if index_file =~ 'Index.viki$'
+            let viki_name = matchlist(index_file, '/\(\w\+\)/Index.viki$')[1]
+
+            exe 'let g:vikiInter' . toupper(viki_name) . ' = "' . index_file . '"'
+            exe 'let g:vikiInter' . toupper(viki_name) .'_suffix = ".viki"'
+            " this command is what we really want at the end of the day - allows us
+            " to type :PROJECTNAME and get the project index
+            exe 'command -bang -nargs=? -complete=customlist,viki#EditComplete ' . viki_name . ' call viki#Edit(empty(<q-args>) ? "' . toupper(viki_name) . '::Index" : viki#InterEditArg("'.toupper(viki_name).'", <q-args>), "<bang>")'
+        else
+            let viki_name = matchlist(index_file, '/\(\w\+\).viki$')[1]
+            exe 'command ' . viki_name . ' e ' . index_file
+        endif
+    endfor
 endfunction
 
 call s:AutoSetProjectInterVikis()
