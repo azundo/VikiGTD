@@ -127,10 +127,14 @@ function s:Item.Delete() dict "{{{3
 endfunction
 
 function s:Item.GetTreeLineLength() dict " {{{3
-    let line_length = self.line_length
-    for child in self.children
-        let line_length =  line_length + child.GetTreeLineLength()
-    endfor
+    if self.starting_line != -1 && len(self.children) != 0 && self.children[-1].starting_line != -1
+        let line_length = self.children[-1].starting_line - self.starting_line + self.children[-1].GetTreeLineLength()
+    else
+        let line_length = self.line_length
+        for child in self.children
+            let line_length =  line_length + child.GetTreeLineLength()
+        endfor
+    endif
     return line_length
 endfunction
 
@@ -890,6 +894,7 @@ if exists('UnitTest')
         call self.AssertEquals(todo.text, 'E-mail Diana about LP stuff 2010-06-02')
     endfunction
 
+
     
     " Test TodoList {{{2
     let b:test_todolist = UnitTest.init("TestTodoList")
@@ -959,6 +964,17 @@ if exists('UnitTest')
     
         " let filtered_todos = new_todolist.FilterByDate('2010-01-01', '2010-01-31')
         " call self.AssertEquals(7, len(filtered_todos.items))
+    endfunction
+
+    function! b:test_todo.TestGetTreeLineLength() dict
+        let current_dir = s:Utils.GetCurrentDirectory()
+        let lines = readfile(current_dir . '/fixtures/trickyChildrenList.txt')
+        let new_list = s:ItemList.init()
+        call new_list.ParseLines(lines)
+        call self.AssertEquals(1, new_list.items[0].GetTreeLineLength())
+        call self.AssertEquals(2, new_list.items[1].GetTreeLineLength())
+        call self.AssertEquals(4, new_list.items[2].GetTreeLineLength())
+        call self.AssertEquals(8, new_list.items[6].GetTreeLineLength())
     endfunction
     
     " Test Utils {{{2
