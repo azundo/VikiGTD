@@ -28,9 +28,12 @@ function! s:AutoSetProjectInterVikis()
     let index_files = s:GetProjectsIndexes()
     for index_file in index_files
         if index_file =~ 'Index.viki$'
-            let viki_name = matchlist(index_file, '/\(\w\+\)/Index.viki$')[1]
+            let m = matchlist(index_file, '\(.*/\(\w\+\)\)/Index.viki$')
+            let viki_dir = m[1]
+            let viki_name = m[2]
+            " let viki_name = matchlist(index_file, '/\(\w\+\)/Index.viki$')[1]
 
-            exe 'let g:vikiInter' . toupper(viki_name) . ' = "' . index_file . '"'
+            exe 'let g:vikiInter' . toupper(viki_name) . ' = "' . viki_dir . '"'
             exe 'let g:vikiInter' . toupper(viki_name) .'_suffix = ".viki"'
             " this command is what we really want at the end of the day - allows us
             " to type :PROJECTNAME and get the project index
