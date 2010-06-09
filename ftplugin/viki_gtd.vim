@@ -394,12 +394,12 @@ function! s:GetProjectsIndexes(...) " {{{2
     else
         let directory = g:vikiGtdProjectsDir
     endif
-    let index_files = split(globpath(directory, '**/*.viki'), '\n')
+    let index_files = split(globpath(directory, '**/Index.viki'), '\n')
     let standalone_projects = split(globpath(directory, '*.viki'), '\n')
-    " remove the projects/Index.viki
-    call filter(standalone_projects, 'v:val !~ "Index.viki"')
     " Add the files together
     let index_files = extend(index_files, standalone_projects)
+    " remove the projects/Index.viki
+    call filter(index_files, 'v:val !~ "' . directory . '/Index.viki"')
     return index_files
 endfunction
 
