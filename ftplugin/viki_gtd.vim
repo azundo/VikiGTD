@@ -202,6 +202,8 @@ function! s:ItemList.init() dict "{{{3
     let instance.project_name = ""
     let instance.item_class = s:Item
     let instance.start_pattern = '^\*\*\s*\w\+'
+    let instance.starting_line = -1
+    let instance.file_name = ''
     return instance
 endfunction
 
@@ -222,15 +224,12 @@ function! s:ItemList.ParseItem(lines, parent, starting_line) dict "{{{3
 endfunction
 
 function! s:ItemList.ParseLines(lines, ...) dict "{{{3
+    TVarArg ['line_offset', 0], 'file_name'
     if empty(a:lines)
         return
     endif
+    let self.file_name = file_name
     let lines_for_item = []
-    if a:0 > 0
-        let line_offset = a:1
-    else
-        let line_offset = 0
-    endif
     let line_counter = 0
     let current_item_start = 0
     " keep track of parent items in a stack
@@ -298,10 +297,8 @@ function! s:ItemList.ParseLines(lines, ...) dict "{{{3
 endfunction
 
 function! s:ItemList.GetListForLine(line_no, ...)
-    if a:0 > 0
-        let lines = a:1
-    else
-        let lines = getline(1, '$') " current buffer
+    TVarArg ['lines', getline(1, '$')], ['file_name', expand("%:p")]
+    if a:0 == 0
         let a:line_no = a:line_no - 1 " adjust to be zero based
     endif
     let current_line = a:line_no
