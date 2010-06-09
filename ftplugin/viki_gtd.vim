@@ -510,6 +510,7 @@ function! s:OpenTodosInSp(filter) "{{{2
     call add(commands, "set buftype=nofile")
     call add(commands, "set bufhidden=delete")
     call add(commands, "setlocal noswapfile")
+    call add(commands, "map <buffer> q :q<CR>")
     call add(commands, "PrintTodos" . a:filter)
     return ':' . join(commands, ' | ')
 endfunction
