@@ -175,7 +175,8 @@ function! s:Item.Print(...) dict " {{{3
     if a:0 > 0
         let indent_level = a:1
     endif
-    call add(lines, repeat(' ', indent_level) . '@ ' . self.text)
+    let line_marker = (self.is_complete == 1) ? '-' : '@'
+    call add(lines, repeat(' ', indent_level) . line_marker . ' ' . self.text)
     if a:0 > 1
         for child in self.children
             call add(lines, child.Print(indent_level+4, a:2))
