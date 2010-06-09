@@ -205,7 +205,7 @@ function! s:ItemList.init() dict "{{{3
     return instance
 endfunction
 
-function! s:ItemList.AddItem(lines, parent, starting_line) dict "{{{3
+function! s:ItemList.ParseItem(lines, parent, starting_line) dict "{{{3
     if a:lines != []
         let new_item = self.item_class.init()
         call new_item.ParseLines(a:lines, a:starting_line)
@@ -269,7 +269,7 @@ function! s:ItemList.ParseLines(lines, ...) dict "{{{3
 
         if line_indent != last_line_indent + 2 
             " here we are at a new item item but at the same level, so add the old one
-            let new_item = self.AddItem(lines_for_item, parent_stack[0], current_item_start + line_offset)
+            let new_item = self.ParseItem(lines_for_item, parent_stack[0], current_item_start + line_offset)
             let lines_for_item = []
             let current_item_start = line_counter
             " Adjust the parent_stack appropriately based on indent level
@@ -290,7 +290,7 @@ function! s:ItemList.ParseLines(lines, ...) dict "{{{3
         call add(lines_for_item, line)
     endwhile
     " parse the final item item after all lines have been gone through
-    call self.AddItem(lines_for_item, parent_stack[0], current_item_start + line_offset)
+    call self.ParseItem(lines_for_item, parent_stack[0], current_item_start + line_offset)
     while match(a:lines[line_counter], '^\(\s*\|\S.*\)$') != -1 && match(a:lines[line_counter], self.start_pattern) == -1
         let line_counter = line_counter -1
     endwhile
@@ -380,11 +380,11 @@ let s:Todo = copy(s:Item)
 " Class: TodoList {{{2
 let s:TodoList = copy(s:ItemList)
 
-function! s:TodoList.init() dict
+function! s:TodoList.init() dict "{{{3
     let instance = s:ItemList.init()
     call extend(instance, copy(self), "force")
     let instance.item_class = s:Todo
-    let instance.AddTodo = instance.AddItem
+    let instance.ParseTodo = instance.ParseItem
     let instance.start_pattern = '^\*\*\s*To[dD]o'
     return instance
 endfunction
