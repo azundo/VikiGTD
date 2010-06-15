@@ -79,6 +79,51 @@ function! s:Utils.GetSundayForWeek(weektime)
     let offset = str2nr(strftime("%w", a:weektime))
     return a:weektime - (offset * 24 * 60 * 60)
 endfunction
+
+
+" Class: Project {{{2
+"
+let s:Project = {}
+
+function! s:Project.init(name, ...) dict "{{{3
+    TVarArg ['project_directory', g:vikiGtdProjectsDir]
+    let instance = copy(self)
+    let instance.name = a:name
+    let instance.project_directory = project_directory
+    let instance.index_file = instance.GetIndexFile()
+    let instance.todo_list = {}
+    let instance.waiting_for_list = {}
+    return instance
+endfunction
+
+function! s:Project.GetIndexFile() dict "{{{3
+    let filename = self.project_directory
+    if match(filename, '/$') == -1
+        let filename = filename . '/'
+    endif
+    if filereadable(filename . self.name . '.viki')
+        let filename = filename . self.name . '.viki'
+    elseif filereadable(filename . self.name . '/Index.viki')
+        let filename = filename . self.name . '/Index.viki'
+    else
+        throw "vikiGTDError: Project " . self.name . " does not exist."
+    endif
+    return filename
+endfunction
+
+function! s:Project.Scrape() dict " {{{3
+    let file_lines = readfile(self.index_file)
+
+    let project_todo = s:TodoList.init()
+    let project_todo.project_name = self.name
+    call project_todo.ParseLines(file_lines)
+    let self.todo_list = project_todo
+
+    let project_waiting_for = s:WaitingForList.init()
+    call project_waiting_for.ParseLines(file_lines)
+    let self.waiting_for_list = project_waiting_for
+endfunction
+"
 " Class: Item {{{2
 "
 let s:Item = {}
@@ -379,10 +424,21 @@ let s:TodoList = copy(s:ItemList)
 
 function! s:TodoList.init() dict "{{{3
     let instance = s:ItemList.init()
+    " "force" means that we override anything in instance with anything in
+    " copy of self
     call extend(instance, copy(self), "force")
     let instance.item_class = s:Todo
     let instance.ParseTodo = instance.ParseItem
     let instance.start_pattern = '^\*\*\s*To[dD]o'
+    return instance
+endfunction
+
+" Class: WaitingForList {{{2
+let s:WaitingForList = copy(s:ItemList)
+function! s:WaitingForList.init() dict "{{{3
+    let instance = s:ItemList.init()
+    call extend(instance, copy(self), "force")
+    let instance.start_pattern = '^\*\*\s*Waiting'
     return instance
 endfunction
 
@@ -852,6 +908,24 @@ if exists('UnitTest')
         call self.AssertEquals(17, new_list.ending_line)
 
     endfunction
+
+    " Test Project {{{2
+    let b:test_project = UnitTest.init("TestProject")
+
+    function! b:test_project.TestGetProjectLocation() dict
+        let p = s:Project.init('TestProject', s:Utils.GetCurrentDirectory() . '/fixtures/projects')
+        call self.AssertEquals('TestProject', p.name)
+        call self.AssertEquals(s:Utils.GetCurrentDirectory() . '/fixtures/projects/TestProject.viki', p.index_file)
+        call p.Scrape()
+        call self.AssertEquals(2, len(p.todo_list.items))
+        call self.AssertEquals(2, p.todo_list.starting_line)
+        call self.AssertEquals(4, p.todo_list.ending_line)
+
+        call self.AssertEquals(3, len(p.waiting_for_list.items))
+        call self.AssertEquals(6, p.waiting_for_list.starting_line)
+        call self.AssertEquals(9, p.waiting_for_list.ending_line)
+    endfunction
+
     "
     " Test Todo {{{2
     let b:test_todo = UnitTest.init("TestTodo")
@@ -1046,6 +1120,7 @@ if exists('UnitTest')
     call b:test_all.AddUnitTest(b:test_utils)
     call b:test_all.AddUnitTest(b:test_scrape)
     call b:test_all.AddUnitTest(b:test_itemlist)
+    call b:test_all.AddUnitTest(b:test_project)
     
     " Add objects to FunctionRegister {{{2
     call FunctionRegister.AddObject(s:Utils, 'Utils')
