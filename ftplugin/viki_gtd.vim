@@ -96,6 +96,17 @@ function! s:Project.init(name, ...) dict "{{{3
     return instance
 endfunction
 
+function! s:Project.GetAllIndexFiles(...) dict "{{{3
+    TVarArg ['directory', g:vikiGtdProjectsDir]
+    let index_files = split(globpath(directory, '**/Index.viki'), '\n')
+    let standalone_projects = split(globpath(directory, '*.viki'), '\n')
+    " Add the files together
+    let index_files = extend(index_files, standalone_projects)
+    " remove the projects/Index.viki
+    call filter(index_files, 'v:val !~ "' . directory . '/Index.viki"')
+    return index_files
+endfunction
+
 function! s:Project.GetIndexFile() dict "{{{3
     let filename = self.project_directory
     if match(filename, '/$') == -1
@@ -123,6 +134,7 @@ function! s:Project.Scrape() dict " {{{3
     call project_waiting_for.ParseLines(file_lines)
     let self.waiting_for_list = project_waiting_for
 endfunction
+
 "
 " Class: Item {{{2
 "
@@ -446,20 +458,20 @@ endfunction
 
 " Private Functions {{{1
 "
-function! s:GetProjectsIndexes(...) " {{{2
-    if a:0 > 0
-        let directory = a:1
-    else
-        let directory = g:vikiGtdProjectsDir
-    endif
-    let index_files = split(globpath(directory, '**/Index.viki'), '\n')
-    let standalone_projects = split(globpath(directory, '*.viki'), '\n')
-    " Add the files together
-    let index_files = extend(index_files, standalone_projects)
-    " remove the projects/Index.viki
-    call filter(index_files, 'v:val !~ "' . directory . '/Index.viki"')
-    return index_files
-endfunction
+" function! s:GetProjectsIndexes(...) " {{{2
+"     if a:0 > 0
+"         let directory = a:1
+"     else
+"         let directory = g:vikiGtdProjectsDir
+"     endif
+"     let index_files = split(globpath(directory, '**/Index.viki'), '\n')
+"     let standalone_projects = split(globpath(directory, '*.viki'), '\n')
+"     " Add the files together
+"     let index_files = extend(index_files, standalone_projects)
+"     " remove the projects/Index.viki
+"     call filter(index_files, 'v:val !~ "' . directory . '/Index.viki"')
+"     return index_files
+" endfunction
 
 function! s:ScrapeProjectDir(...) " {{{2
     if a:0 > 0
@@ -467,7 +479,7 @@ function! s:ScrapeProjectDir(...) " {{{2
     else
         let directory = g:vikiGtdProjectsDir
     endif
-    let index_files = s:GetProjectsIndexes(directory)
+    let index_files = s:Project.GetAllIndexFiles(directory)
     let todo_lists = {}
     for filename in index_files
         let new_list = s:TodoList.init()
@@ -713,7 +725,7 @@ function! s:GetProjectsToReview(freq, ...) "{{{2
     else
         let directory = g:vikiGtdProjectsDir
     endif
-    let project_indexes = s:GetProjectsIndexes(directory)
+    let project_indexes = s:Project.GetAllIndexFiles(directory)
     let to_review = []
     for filename in project_indexes
         try
@@ -926,6 +938,15 @@ if exists('UnitTest')
         call self.AssertEquals(9, p.waiting_for_list.ending_line)
     endfunction
 
+    function! b:test_project.TestGetProjectIndexes() dict
+        let here = s:Utils.GetCurrentDirectory()
+        let test_projects = here . '/fixtures/projects'
+        let project_indexes = s:Project.GetAllIndexFiles(test_projects)
+        call self.AssertNotEquals(-1, index(project_indexes, test_projects . '/MajorDailyProject/Index.viki'))
+        call self.AssertNotEquals(-1, index(project_indexes, test_projects. '/SingleFileProject.viki'))
+        call self.AssertNotEquals(-1, index(project_indexes, test_projects . '/TestProject.viki'))
+    endfunction
+
     "
     " Test Todo {{{2
     let b:test_todo = UnitTest.init("TestTodo")
@@ -1076,6 +1097,16 @@ if exists('UnitTest')
     " Test Project Scrape Functions {{{2
     "
     let b:test_scrape = UnitTest.init("TestScrape")
+
+    " function! b:test_scrape.TestGetProjectIndexes() dict
+    "     let here = s:Utils.GetCurrentDirectory()
+    "     let test_projects = here . '/fixtures/projects'
+    "     let project_indexes = s:GetProjectsIndexes(test_projects)
+    "     call self.AssertNotEquals(-1, index(project_indexes, test_projects . '/MajorDailyProject/Index.viki'))
+    "     call self.AssertNotEquals(-1, index(project_indexes, test_projects. '/SingleFileProject.viki'))
+    "     call self.AssertNotEquals(-1, index(project_indexes, test_projects . '/TestProject.viki'))
+    " endfunction
+
     function! b:test_scrape.TestBasicScrape() dict
         let todolists = s:ScrapeProjectDir(s:Utils.GetCurrentDirectory().'/fixtures/projects')
         " call self.AssertEquals(len(todolists), 4) This gets outdated as I
