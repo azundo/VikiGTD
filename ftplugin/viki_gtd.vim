@@ -107,6 +107,22 @@ function! s:Project.GetAllIndexFiles(...) dict "{{{3
     return index_files
 endfunction
 
+function! s:Project.ScrapeDirectory(...) dict " {{{3
+    TVarArg ['directory', g:vikiGtdProjectsDir]
+    let index_files = self.GetAllIndexFiles(directory)
+    let projects = {}
+    for filename in index_files
+        if filename =~ 'Index.viki'
+            let new_proj = s:Project.init(matchlist(filename, '\(\w\+\)/Index\.viki$')[1], directory)
+        else
+            let new_proj = s:Project.init(matchlist(filename, '\(\w\+\)\.viki$')[1], directory)
+        endif
+        call new_proj.Scrape()
+        let projects[new_proj.name] =  new_proj
+    endfor
+    return projects
+endfunction
+
 function! s:Project.GetIndexFile() dict "{{{3
     let filename = self.project_directory
     if match(filename, '/$') == -1
@@ -458,41 +474,7 @@ endfunction
 
 " Private Functions {{{1
 "
-" function! s:GetProjectsIndexes(...) " {{{2
-"     if a:0 > 0
-"         let directory = a:1
-"     else
-"         let directory = g:vikiGtdProjectsDir
-"     endif
-"     let index_files = split(globpath(directory, '**/Index.viki'), '\n')
-"     let standalone_projects = split(globpath(directory, '*.viki'), '\n')
-"     " Add the files together
-"     let index_files = extend(index_files, standalone_projects)
-"     " remove the projects/Index.viki
-"     call filter(index_files, 'v:val !~ "' . directory . '/Index.viki"')
-"     return index_files
-" endfunction
 
-function! s:ScrapeProjectDir(...) " {{{2
-    if a:0 > 0
-        let directory = a:1
-    else
-        let directory = g:vikiGtdProjectsDir
-    endif
-    let index_files = s:Project.GetAllIndexFiles(directory)
-    let todo_lists = {}
-    for filename in index_files
-        let new_list = s:TodoList.init()
-        if filename =~ 'Index.viki'
-            let new_list.project_name = matchlist(filename, '\(\w\+\)/Index\.viki$')[1]
-        else
-            let new_list.project_name = matchlist(filename, '\(\w\+\)\.viki$')[1]
-        endif
-        call new_list.ParseLines(readfile(filename))
-        let todo_lists[new_list.project_name] =  new_list
-    endfor
-    return todo_lists
-endfunction
 
 function! s:GetProjectIndex(project_name, ...) " {{{2
     if a:0 > 0
@@ -544,7 +526,13 @@ function! s:CombineTodoLists(lists) "{{{2
 endfunction
 
 function! s:GetTodos(filter) "{{{2
-    let all_todo_lists = s:ScrapeProjectDir()
+    let all_projects = s:Project.ScrapeDirectory()
+    let all_todo_lists = []
+    for proj in values(all_projects)
+        if proj.todo_list != {}
+            call add(all_todo_lists, proj.todo_list)
+        endif
+    endfor
     let all_todos_list = s:CombineTodoLists(all_todo_lists)
     if a:filter == 'Today'
         let filtered_todos = all_todos_list.GetDueToday()
@@ -1098,17 +1086,14 @@ if exists('UnitTest')
     "
     let b:test_scrape = UnitTest.init("TestScrape")
 
-    " function! b:test_scrape.TestGetProjectIndexes() dict
-    "     let here = s:Utils.GetCurrentDirectory()
-    "     let test_projects = here . '/fixtures/projects'
-    "     let project_indexes = s:GetProjectsIndexes(test_projects)
-    "     call self.AssertNotEquals(-1, index(project_indexes, test_projects . '/MajorDailyProject/Index.viki'))
-    "     call self.AssertNotEquals(-1, index(project_indexes, test_projects. '/SingleFileProject.viki'))
-    "     call self.AssertNotEquals(-1, index(project_indexes, test_projects . '/TestProject.viki'))
-    " endfunction
-
     function! b:test_scrape.TestBasicScrape() dict
-        let todolists = s:ScrapeProjectDir(s:Utils.GetCurrentDirectory().'/fixtures/projects')
+        let all_projects = s:Project.ScrapeDirectory(s:Utils.GetCurrentDirectory().'/fixtures/projects')
+        let todolists = {}
+        for proj in values(all_projects)
+            if proj.todo_list != {}
+                let todolists[proj.name] = proj.todo_list
+            endif
+        endfor
         " call self.AssertEquals(len(todolists), 4) This gets outdated as I
         " add more fixtures, so lets leave it alone for now
         call self.AssertTrue(has_key(todolists, 'proj1'))
