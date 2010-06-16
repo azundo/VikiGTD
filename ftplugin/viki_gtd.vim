@@ -90,7 +90,7 @@ function! s:Project.init(name, ...) dict "{{{3
     let instance = copy(self)
     let instance.name = a:name
     let instance.project_directory = project_directory
-    let instance.index_file = instance.GetIndexFile()
+    let instance.index_file = instance.GetOwnIndexFile()
     let instance.todo_list = {}
     let instance.waiting_for_list = {}
     return instance
@@ -105,6 +105,23 @@ function! s:Project.GetAllIndexFiles(...) dict "{{{3
     " remove the projects/Index.viki
     call filter(index_files, 'v:val !~ "' . directory . '/Index.viki"')
     return index_files
+endfunction
+
+function! s:Project.GetIndexFile(project_name, ...) dict "{{{3
+    TVarArg ['directory', g:vikiGtdProjectsDir]
+    let filename = directory
+    let project_name = substitute(a:project_name, '^#', '', '')
+    if match(filename, '/$') == -1
+        let filename = filename . '/'
+    endif
+    if filereadable(filename . project_name . '.viki')
+        let filename = filename . project_name . '.viki'
+    elseif filereadable(filename . project_name . '/Index.viki')
+        let filename = filename . project_name . '/Index.viki'
+    else
+        throw "vikiGTDError: Project " . project_name . " does not exist."
+    endif
+    return filename
 endfunction
 
 function! s:Project.ScrapeDirectory(...) dict " {{{3
@@ -123,7 +140,7 @@ function! s:Project.ScrapeDirectory(...) dict " {{{3
     return projects
 endfunction
 
-function! s:Project.GetIndexFile() dict "{{{3
+function! s:Project.GetOwnIndexFile() dict "{{{3
     let filename = self.project_directory
     if match(filename, '/$') == -1
         let filename = filename . '/'
@@ -174,7 +191,7 @@ function s:Item.Equals(other_item) dict "{{{3
 endfunction
 
 function s:Item.Delete() dict "{{{3
-    let project_file = s:GetProjectIndex(self.project_name)
+    let project_file = s:Project.GetIndexFile(self.project_name)
     if filereadable(substitute(project_file, '\(\w\+\.viki\)$', '\.\1\.swp', ''))
         echo "Project file for " . self.project_name . " is open - can't modify."
     else
@@ -475,28 +492,6 @@ endfunction
 " Private Functions {{{1
 "
 
-
-function! s:GetProjectIndex(project_name, ...) " {{{2
-    if a:0 > 0
-        let directory = a:1
-    else
-        let directory = g:vikiGtdProjectsDir
-    endif
-    let filename = directory
-    let project_name = substitute(a:project_name, '^#', '', '')
-    if match(filename, '/$') == -1
-        let filename = filename . '/'
-    endif
-    if filereadable(filename . project_name . '.viki')
-        let filename = filename . project_name . '.viki'
-    elseif filereadable(filename . project_name . '/Index.viki')
-        let filename = filename . project_name . '/Index.viki'
-    else
-        throw "vikiGTDError: Project " . project_name . " does not exist."
-    endif
-    return filename
-endfunction
-
 function! s:CombineTodoLists(lists) "{{{2
     let combined_list = s:TodoList.init()
     if type(a:lists) == type({})
@@ -687,7 +682,7 @@ endfunction
 function! s:GoToProject(project_name) "{{{2
     echo a:project_name
     try
-        let project_index = s:GetProjectIndex(a:project_name)
+        let project_index = s:Project.GetIndexFile(a:project_name)
         return 'rightb vsp ' . fnameescape(project_index)
     catch /vikiGTDError/
         return 'echo "' . substitute(v:exception, 'vikiGTDError: ', '', '') . '"'
@@ -922,6 +917,13 @@ if exists('UnitTest')
         call self.AssertNotEquals(-1, index(project_indexes, test_projects . '/MajorDailyProject/Index.viki'))
         call self.AssertNotEquals(-1, index(project_indexes, test_projects. '/SingleFileProject.viki'))
         call self.AssertNotEquals(-1, index(project_indexes, test_projects . '/TestProject.viki'))
+    endfunction
+
+    function! b:test_project.TestGetProjectIndex() dict
+        let here = s:Utils.GetCurrentDirectory()
+        let test_projects = here . '/fixtures/projects'
+        call self.AssertEquals(test_projects . '/MajorDailyProject/Index.viki', s:Project.GetIndexFile('MajorDailyProject', test_projects))
+        call self.AssertEquals(test_projects . '/SingleFileProject.viki', s:Project.GetIndexFile('SingleFileProject', test_projects))
     endfunction
 
     "
