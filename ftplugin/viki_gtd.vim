@@ -497,19 +497,6 @@ function! s:GetProjectIndex(project_name, ...) " {{{2
     return filename
 endfunction
 
-function! s:ScrapeProject(project_name, ...) " {{{2
-    if a:0 > 0
-        let filename = s:GetProjectIndex(a:project_name, a:1)
-    else
-        let filename = s:GetProjectIndex(a:project_name)
-    endif
-    let file_lines = readfile(filename)
-    let project_todo = s:TodoList.init()
-    let project_todo.project_name = a:project_name
-    call project_todo.ParseLines(file_lines)
-    return project_todo
-endfunction
-
 function! s:CombineTodoLists(lists) "{{{2
     let combined_list = s:TodoList.init()
     if type(a:lists) == type({})
@@ -668,7 +655,9 @@ function! s:MarkTodoUnderCursorComplete() "{{{2
     endif
     if current_todo.project_name != ""
         try
-            let project_todo_list = s:ScrapeProject(current_todo.project_name)
+            let proj = s:Project.init(current_todo.project_name)
+            call proj.Scrape()
+            let project_todo_list = proj.todo_list
             let todo_found = 0
             for todo in project_todo_list.items
                 if todo.text == current_todo.text
@@ -1103,12 +1092,16 @@ if exists('UnitTest')
     endfunction
 
     function! b:test_scrape.TestProjectScrape() dict
-        let todolist = s:ScrapeProject('proj1', s:Utils.GetCurrentDirectory().'/fixtures/projects')
+        let proj = s:Project.init('proj1', s:Utils.GetCurrentDirectory().'/fixtures/projects')
+        call proj.Scrape()
+        let todolist = proj.todo_list
         call self.AssertEquals(3, len(todolist.items))
     endfunction
 
     function! b:test_scrape.TestProjectScrapeName() dict
-        let todolist = s:ScrapeProject('proj1', s:Utils.GetCurrentDirectory().'/fixtures/projects')
+        let proj = s:Project.init('proj1', s:Utils.GetCurrentDirectory().'/fixtures/projects')
+        call proj.Scrape()
+        let todolist = proj.todo_list
         call self.AssertEquals('proj1', todolist.project_name)
         " echo todolist.Print()
         " echo todolist.Print(1)
@@ -1123,7 +1116,9 @@ if exists('UnitTest')
     endfunction
 
     function! b:test_scrape.TestScrapeProjEmptyTodo() dict
-        let todolist = s:ScrapeProject('EmptyTodo', s:Utils.GetCurrentDirectory().'/fixtures/projects')
+        let proj = s:Project.init('EmptyTodo', s:Utils.GetCurrentDirectory().'/fixtures/projects')
+        call proj.Scrape()
+        let todolist = proj.todo_list
         call self.AssertEquals(8, todolist.starting_line)
         call self.AssertEquals(8, todolist.ending_line)
     endfunction
