@@ -297,6 +297,21 @@ function! s:ItemList.init() dict "{{{3
     return instance
 endfunction
 
+function! s:ItemList.CombineLists(lists) dict "{{{3
+    let combined_list = self.init()
+    if type(a:lists) == type({})
+        let ls = values(a:lists)
+    elseif type(a:lists) == type([])
+        let ls = a:lists
+    else
+        throw "vikiGTDError: CombineLists takes only a dictionary or list."
+    endif
+    for l in ls
+        call extend(combined_list.items, l.items)
+    endfor
+    return combined_list
+endfunction
+
 function! s:ItemList.ParseItem(lines, parent, starting_line) dict "{{{3
     if a:lines != []
         let new_item = self.item_class.init()
@@ -492,21 +507,6 @@ endfunction
 " Private Functions {{{1
 "
 
-function! s:CombineTodoLists(lists) "{{{2
-    let combined_list = s:TodoList.init()
-    if type(a:lists) == type({})
-        let ls = values(a:lists)
-    elseif type(a:lists) == type([])
-        let ls = a:lists
-    else
-        throw "vikiGTDError: CombineTodoLists takes only a dictionary or list."
-    endif
-    for l in ls
-        call extend(combined_list.items, l.items)
-    endfor
-    return combined_list
-endfunction
-
 function! s:GetTodos(filter) "{{{2
     let all_projects = s:Project.ScrapeDirectory()
     let all_todo_lists = []
@@ -515,7 +515,7 @@ function! s:GetTodos(filter) "{{{2
             call add(all_todo_lists, proj.todo_list)
         endif
     endfor
-    let all_todos_list = s:CombineTodoLists(all_todo_lists)
+    let all_todos_list = s:TodoList.CombineLists(all_todo_lists)
     if a:filter == 'Today'
         let filtered_todos = all_todos_list.GetDueToday()
     elseif a:filter == 'TodayAndTomorrow'
@@ -893,6 +893,21 @@ if exists('UnitTest')
 
     endfunction
 
+    function! b:test_itemlist.TestCombineLists() dict
+        let first = s:TodoList.init()
+        let second = s:TodoList.init()
+        let first_todo = s:Todo.init()
+        let first_todo.text = "test"
+        let second_todo = s:Todo.init()
+        let second_todo.text = "something here"
+        call add(first.items, first_todo)
+        call add(second.items, second_todo)
+        let third_list = s:TodoList.CombineLists([first, second])
+        call self.AssertNotEquals(-1, index(third_list.items, first_todo))
+        call self.AssertNotEquals(-1, index(third_list.items, second_todo))
+        call self.AssertEquals(s:Todo, third_list.item_class)
+    endfunction
+
     " Test Project {{{2
     let b:test_project = UnitTest.init("TestProject")
 
@@ -925,6 +940,7 @@ if exists('UnitTest')
         call self.AssertEquals(test_projects . '/MajorDailyProject/Index.viki', s:Project.GetIndexFile('MajorDailyProject', test_projects))
         call self.AssertEquals(test_projects . '/SingleFileProject.viki', s:Project.GetIndexFile('SingleFileProject', test_projects))
     endfunction
+
 
     "
     " Test Todo {{{2
@@ -1048,7 +1064,7 @@ if exists('UnitTest')
         call self.AssertEquals(4, new_list.items[2].GetTreeLineLength())
         call self.AssertEquals(8, new_list.items[6].GetTreeLineLength())
     endfunction
-    
+
     " Test Utils {{{2
     let b:test_utils = UnitTest.init("TestUtils")
     function! b:test_utils.TestGetDirectory() dict
