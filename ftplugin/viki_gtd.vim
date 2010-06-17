@@ -425,32 +425,10 @@ function! s:ItemList.FilterByDate(start_date, end_date) dict "{{{3
     return new_list
 endfunction
 
-function! s:ItemList.GetDueToday() dict "{{{3
-    let today = strftime("%Y-%m-%d")
-    return self.FilterByDate(today, today)
-endfunction
 
-function! s:ItemList.GetDueTomorrow() dict "{{{3
-    let tomorrow = strftime("%Y-%m-%d", localtime() + 24*60*60)
-    return self.FilterByDate(tomorrow, tomorrow)
-endfunction
 
-function! s:ItemList.GetDueTodayOrTomorrow() dict "{{{3
-    let today = strftime("%Y-%m-%d")
-    let tomorrow = strftime("%Y-%m-%d", localtime() + 24*60*60)
-    return self.FilterByDate(today, tomorrow)
-endfunction
 
-function! s:ItemList.GetDueThisWeek() dict "{{{3
-    let this_week_sunday = strftime("%Y-%m-%d", s:Utils.GetSundayForWeek(localtime()))
-    let next_week_sunday = strftime("%Y-%m-%d", s:Utils.GetSundayForWeek(localtime() + 7*24*60*60))
-    return self.FilterByDate(this_week_sunday, next_week_sunday)
-endfunction
 
-function! s:ItemList.GetOverdue() dict "{{{3
-    let yesterday = strftime("%Y-%m-%d", localtime() - 24*60*60)
-    return self.FilterByDate("0000-00-00", yesterday)
-endfunction
 
 function! s:ItemList.Print(...) dict "{{{3
     let lines = []
@@ -515,21 +493,27 @@ function! s:GetTodos(filter) "{{{2
             call add(all_todo_lists, proj.todo_list)
         endif
     endfor
+    let today = strftime("%Y-%m-%d")
+    let tomorrow = strftime("%Y-%m-%d", localtime() + 24*60*60)
+    let this_week_sunday = strftime("%Y-%m-%d", s:Utils.GetSundayForWeek(localtime()))
+    let next_week_sunday = strftime("%Y-%m-%d", s:Utils.GetSundayForWeek(localtime() + 7*24*60*60))
+    let yesterday = strftime("%Y-%m-%d", localtime() - 24*60*60)
     let all_todos_list = s:TodoList.CombineLists(all_todo_lists)
     if a:filter == 'Today'
-        let filtered_todos = all_todos_list.GetDueToday()
+        let filtered_todos = all_todos_list.FilterByDate(today, today)
     elseif a:filter == 'TodayAndTomorrow'
-        let filtered_todos = all_todos_list.GetDueTodayOrTomorrow()
+        let filtered_todos = all_todos_list.FilterByDate(today, tomorrow)
     elseif a:filter == 'Tomorrow'
-        let filtered_todos = all_todos_list.GetDueTomorrow()
+        let filtered_todos = all_todos_list.FilterByDate(tomorrow, tomorrow)
     elseif a:filter == 'Overdue'
-        let filtered_todos = all_todos_list.GetOverdue()
+        let filtered_todos = all_todos_list.FilterByDate("0000-00-00", yesterday)
     elseif a:filter == 'ThisWeek'
-        let filtered_todos = all_todos_list.GetDueThisWeek()
+        let filtered_todos = all_todos_list.FilterByDate(this_week_sunday, next_week_sunday)
     elseif a:filter == 'All'
         let filtered_todos = all_todos_list
     elseif a:filter == ''
-        let filtered_todos = all_todos_list.GetDueTodayOrTomorrow()
+        " get today or tomorrow if filter is blank
+        let filtered_todos = all_todos_list.FilterByDate(today, tomorrow)
     else
         let filtered_todos = all_todos_list
     endif
