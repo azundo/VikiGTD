@@ -45,8 +45,11 @@ let cd = g:snip_elem_delim
 exec "Snippet day * ".st."date".et."
 \<CR>
 \<CR>** Daily Habits
+\<CR>
 \<CR><TAB>@ Do daily set up first thing
-\<CR>@ Blog for half an hour
+\<CR><TAB>@ Review Todos and Overdue Todos
+\<CR>@ Review Daily Projects
+\<CR><BS>@ Blog for half an hour
 \<CR>
 \<CR><BS>** Set up
 \<CR><TAB>@ ".st.et."
@@ -57,7 +60,9 @@ exec "Snippet today * ".strftime("%Y-%m-%d")."
 \<CR>** Daily Habits
 \<CR>
 \<CR><TAB>@ Do daily set up first thing
-\<CR>@ Blog for half an hour
+\<CR><TAB>@ Review Todos and Overdue Todos
+\<CR>@ Review Daily Projects
+\<CR><BS>@ Blog for half an hour
 \<CR>
 \<CR><BS>** Set up
 \<CR><TAB>@ ".st.et."
@@ -68,12 +73,11 @@ exec "Snippet week * Week of ".st."date".et."
 \<CR>
 \<CR>** Weekly Habits
 \<CR><TAB>@ Beginning of Week Reflection
+\<CR>@ Review Weekly Projects
 \<CR>@ Mid Week Check-In
 \<CR>@ Blog Post
 \<CR>@ Exercise Quota
 \<CR>@ Email Under Control
-\<CR>@ One Specific Question to Answer
-\<CR>@ Write Up on Previous Week's Question
 \<CR>
 \<CR><BS>** Beginning of Week Reflection and Prep
 \<CR>".st.et."
@@ -95,12 +99,11 @@ exec "Snippet thisweek * Week of ".s:GetDateForDayName("Sunday")."
 \<CR>
 \<CR>** Weekly Habits
 \<CR><TAB>@ Beginning of Week Reflection
+\<CR>@ Review Weekly Projects
 \<CR>@ Mid Week Check-In
 \<CR>@ Blog Post
 \<CR>@ Exercise Quota
 \<CR>@ Email Under Control
-\<CR>@ One Specific Question to Answer
-\<CR>@ Write Up on Previous Week's Question
 \<CR>
 \<CR><BS>** Beginning of Week Reflection and Prep
 \<CR>".st.et."
