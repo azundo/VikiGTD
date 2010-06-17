@@ -525,6 +525,7 @@ function! s:PrintTodos(filter) "{{{2
     let filtered_todos = s:GetTodos(a:filter)
     let split_todos = split(filtered_todos.Print(1), "\n")
     call append(line('.'), split_todos)
+    " format the todos to the correct text width with gq
     exe "normal V".len(split_todos)."jgq"
 endfunction
 
