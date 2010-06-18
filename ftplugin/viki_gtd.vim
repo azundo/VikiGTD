@@ -75,7 +75,7 @@ function! s:Utils.RemoveDuplicates(l) "{{{3
     return val
 endfunction
 
-function! s:Utils.GetSundayForWeek(weektime)
+function! s:Utils.GetSundayForWeek(weektime) "{{{3
     let offset = str2nr(strftime("%w", a:weektime))
     return a:weektime - (offset * 24 * 60 * 60)
 endfunction
@@ -401,7 +401,7 @@ function! s:ItemList.ParseLines(lines, ...) dict "{{{3
     let self.ending_line = line_counter + line_offset
 endfunction
 
-function! s:ItemList.GetListForLine(line_no, ...)
+function! s:ItemList.GetListForLine(line_no, ...) " {{{3
     TVarArg ['lines', getline(1, '$')], ['file_name', expand("%:p")]
     if a:0 == 0
         let a:line_no = a:line_no - 1 " adjust to be zero based
