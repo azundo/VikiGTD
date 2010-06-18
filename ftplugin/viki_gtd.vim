@@ -426,10 +426,6 @@ function! s:ItemList.FilterByDate(start_date, end_date) dict "{{{3
 endfunction
 
 
-
-
-
-
 function! s:ItemList.Print(...) dict "{{{3
     let lines = []
     if a:0 > 0 " we'll print the parents
@@ -803,13 +799,6 @@ endif
 noremap <buffer> <script> <unique> <Plug>VikiGTDGoToProject <SID>GoToProject
 noremap <SID>GoToProject  :<C-R>=<SID>GoToProject(expand("<cword>"))<CR><CR>
 
-" if !exists(":EchoTodoUnderCursor")
-"     command EchoTodoUnderCursor :echo s:GetTodoForLine().text
-" endif
-" 
-" if !exists(":EchoProjectUnderCursor")
-"     command EchoProjectUnderCursor :echo s:GetTodoForLine().project_name
-" endif
 
 " Highlight groups {{{1
 highlight VikiDate ctermfg=91
