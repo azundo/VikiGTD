@@ -557,10 +557,10 @@ function! s:ItemList.AddItem(item) dict " {{{3
         return
     endif
     let file_lines = readfile(self.file_name)
-    let item_line = a:item.Print()
+    let item_line = a:item.Print(4)
     call insert(file_lines, item_line, self.ending_line + 1)
-    call writefile(files_lines, self.file_name)
-    echo 'Added ' . item.text . ' to ' self.file_name
+    call writefile(file_lines, self.file_name)
+    echo 'Added ' . a:item.text . ' to ' . self.file_name . '.'
 endfunction
 " Class: Todo {{{2
 let s:Todo = copy(s:Item)
@@ -822,6 +822,18 @@ function! s:ReviewProjects(freq) " {{{2
     endif
 endfunction
 
+function! s:AddTodoCmd(project_name) " {{{3
+    let todo_text = input("Enter todo text:\n")
+    if todo_text == ''
+        return
+    endif
+    let p = s:Project.init(a:project_name)
+    call p.Scrape()
+    let td = s:Todo.init()
+    let td.text = todo_text
+    call p.todo_list.AddItem(td)
+endfunction
+
 " Public Functions {{{1
 
 function! VikiGTDGetTodos(filter) "{{{2
@@ -860,6 +872,10 @@ endif
 
 if !exists(":ProjectReviewMonthly")
     exe "command! ProjectReviewMonthly ". s:ReviewProjects("m")
+endif
+
+if !exists(":AddTodo")
+    command -nargs=1 AddTodo :call s:AddTodoCmd(<f-args>)
 endif
 
 " Mappings {{{2
