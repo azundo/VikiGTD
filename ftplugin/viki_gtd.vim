@@ -406,21 +406,37 @@ function! s:ItemList.ParseLines(lines, ...) dict "{{{3
     let self.starting_line = line_counter + line_offset
     let last_line_indent = -1
     while line_counter < len(a:lines) - 1
-        " increment counter at the beginning of the for loop to
-        " keep things simple
-        " the one-off error that would have happened is negated by
-        " removing the start_pattern line and not incrementing the counter then
         let line_counter = line_counter + 1
-        let line = a:lines[line_counter]
-        let line_indent = s:Utils.LineIndent(line)
-
-        if match(line, '^\S') != -1
+        if match(a:lines[line_counter], '^\S') != -1
             " break if we are at a line with non-space as the first character
             " remove a line from the line counter so we are at the last line
             " in the list
             let line_counter = line_counter - 1
             break
-        elseif match(line, '^\s*$') != -1
+        endif
+    endwhile
+    while match(a:lines[line_counter], '^\(\s*\|\S.*\)$') != -1 && match(a:lines[line_counter], self.start_pattern) == -1
+        let line_counter = line_counter -1
+    endwhile
+    let self.ending_line = line_counter + line_offset
+    call self.ParseItemLines(a:lines[self.starting_line + 1 - line_offset : self.ending_line - line_offset], self.starting_line + 1)
+endfunction
+
+function! s:ItemList.ParseItemLines(lines, ...) dict " {{{3
+    TVarArg ['line_offset', 0]
+    let line_counter = -1
+    let lines_for_item = []
+    let current_item_start = 0
+    let last_line_indent = -1
+    " keep track of parent items in a stack
+    " since we don't have a None in vim, use an empty
+    " object (dict) as the top parent
+    let parent_stack = [{},]
+    while line_counter < len(a:lines) - 1
+        let line_counter = line_counter + 1
+        let line = a:lines[line_counter]
+        let line_indent = s:Utils.LineIndent(line)
+        if match(line, '^\s*$') != -1
             " continue if we are on a blank line
             continue
         endif
@@ -449,11 +465,8 @@ function! s:ItemList.ParseLines(lines, ...) dict "{{{3
     endwhile
     " parse the final item item after all lines have been gone through
     call self.ParseItem(lines_for_item, parent_stack[0], current_item_start + line_offset)
-    while match(a:lines[line_counter], '^\(\s*\|\S.*\)$') != -1 && match(a:lines[line_counter], self.start_pattern) == -1
-        let line_counter = line_counter -1
-    endwhile
-    let self.ending_line = line_counter + line_offset
 endfunction
+
 
 function! s:ItemList.GetListForLine(line_no, ...) " {{{3
     TVarArg ['lines', getline(1, '$')], ['file_name', expand("%:p")]
@@ -1006,6 +1019,20 @@ if exists('UnitTest')
         call self.AssertEquals('One with a date 2010-06-05', item.text)
         call self.AssertEquals('2010-06-05', item.date)
     endfunction
+
+    " Test ItemList {{{2
+    let b:test_itemlist = UnitTest.init("TestItem")
+
+    function! b:test_itemlist.TestParseItemLines() dict "{{{3
+        let here = s:Utils.GetCurrentDirectory()
+        let lines = readfile(here.'/fixtures/testParseItemLines.txt')
+        let il = s:ItemList.init()
+        call il.ParseItemLines(lines)
+        let parents = filter(il.items, 'v:val.parent == {}')
+        call self.AssertEquals(0, len(il.items[0].children))
+        call self.AssertEquals(3, len(il.items[1].children))
+    endfunction
+
 
     " Test Todo {{{2
     let b:test_todo = UnitTest.init("TestTodo")
