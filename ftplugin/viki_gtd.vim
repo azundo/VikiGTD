@@ -335,6 +335,33 @@ function! s:Item.GetItemOnLine(line, ...) dict " {{{3
     return item
 endfunction
 
+function! s:Item.GetItemTreeOnLine(line, ...) dict " {{{3
+    TVarArg ['lines', getline(0, '$')]
+    let line = a:line
+    while line >= 0 && s:Utils.LineIndent(lines[line]) != 4
+        if s:Utils.LineIndent(lines[line]) == 0 && lines[line] != ""
+            return self.init()
+        endif
+        let line = line - 1
+    endwhile
+    let item_tree = self.init()
+    if match(lines[line], item_tree.begin_pattern) != -1
+        let first_line_no = line
+        let line = line + 1
+        while len(lines) > line
+            if s:Utils.LineIndent(lines[line]) == 4
+                break
+            elseif s:Utils.LineIndent(lines[line]) == 0 && lines[line] != ''
+                break
+            endif
+            let line = line + 1
+        endwhile
+        let item_list = item_tree.list_class.init()
+        call item_list.ParseItemLines(lines[first_line_no : line - 1])
+    endif
+    return item_list.items[0]
+endfunction
+
 
 " Class: ItemList {{{2
 
@@ -1018,6 +1045,16 @@ if exists('UnitTest')
         let item = s:Item.GetItemOnLine(10, lines)
         call self.AssertEquals('One with a date 2010-06-05', item.text)
         call self.AssertEquals('2010-06-05', item.date)
+    endfunction
+
+    function! b:test_item.TestGetItemTreeOnLine() dict
+        let here = s:Utils.GetCurrentDirectory()
+        let lines = readfile(here.'/fixtures/testGetItemTreeOnLine.txt')
+        let item_tree = s:Item.GetItemTreeOnLine(1, lines)
+        call self.AssertEquals('Level one', item_tree.text)
+        call self.AssertEquals(2, len(item_tree.children))
+        call self.AssertEquals(1, len(item_tree.children[0].children))
+        call self.AssertEquals(0, len(item_tree.children[1].children))
     endfunction
 
     " Test ItemList {{{2
