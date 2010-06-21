@@ -140,6 +140,21 @@ function! s:Project.ScrapeDirectory(...) dict " {{{3
     return projects
 endfunction
 
+function! s:Project.GetProjectNames(...) dict " {{{3
+    TVarArg ['directory', g:vikiGtdProjectsDir]
+    let directory = g:vikiGtdProjectsDir
+    let index_files = self.GetAllIndexFiles(directory)
+    let project_names = []
+    for filename in index_files
+        if filename =~ 'Index.viki'
+            call add(project_names, matchlist(filename, '\(\w\+\)/Index\.viki$')[1])
+        else
+            call add(project_names, matchlist(filename, '\(\w\+\)\.viki$')[1])
+        endif
+    endfor
+    return project_names
+endfunction
+
 function! s:Project.GetOwnIndexFile() dict "{{{3
     let filename = self.project_directory
     if match(filename, '/$') == -1
@@ -840,6 +855,11 @@ function! VikiGTDGetTodos(filter) "{{{2
     return s:GetTodos(a:filter)
 endfunction
 
+function! b:VikiGTDGetProjectNamesForAutocompletion(...) "{{{2
+    let project_names = s:Project.GetProjectNames()
+    return join(project_names, "\n")
+endfunction
+
 " Commands Mappings and Highlight Groups {{{1
 "
 " Commands {{{2
@@ -875,7 +895,7 @@ if !exists(":ProjectReviewMonthly")
 endif
 
 if !exists(":AddTodo")
-    command -nargs=1 AddTodo :call s:AddTodoCmd(<f-args>)
+    command -nargs=1 -complete=custom,b:VikiGTDGetProjectNamesForAutocompletion AddTodo :call s:AddTodoCmd(<f-args>)
 endif
 
 " Mappings {{{2
