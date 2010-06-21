@@ -261,19 +261,16 @@ function! s:Item.ParseLines(lines, ...) dict "{{{3
 endfunction
 
 function! s:Item.Print(...) dict " {{{3
-    let indent_level = 0
+    TVarArg ['indent_level', 0], ['recursive', 0], ['print_project_name', 0]
     let lines = []
-    if a:0 > 0
-        let indent_level = a:1
-    endif
     let line_marker = (self.is_complete == 1) ? '-' : '@'
     call add(lines, repeat(' ', indent_level) . line_marker . ' ' . self.text)
-    if a:0 > 1
+    if recursive != 0
         for child in self.children
-            call add(lines, child.Print(indent_level+4, a:2))
+            call add(lines, child.Print(indent_level+4, recursive))
         endfor
     endif
-    if a:0 != 2 && self.project_name != ""
+    if (print_project_name != 0 || recursive == 0 ) && self.project_name != ""
         " add the project tag if we're not recursivley printing, or if
         " we're explicitly told to with the existence of a third argument
         let lines[0] = lines[0] . ' #' . self.project_name
