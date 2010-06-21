@@ -280,6 +280,59 @@ function! s:Item.Print(...) dict " {{{3
     return join(lines, "\n")
 endfunction
 
+function! s:Item.GetItemOnLine(line, ...) dict " {{{3
+    TVarArg ['lines', getline(0, '$')]
+    let item = self.init()
+    let current_line_no = a:line
+    let current_line = lines[current_line_no]
+    let first_indent = s:Utils.LineIndent(current_line)
+    let first_line_no = -1
+    if match(current_line, item.begin_pattern) != -1
+        " if the current line matches the beginning of a todo, save it as the
+        " first line
+        let first_line_no = current_line_no
+    else
+        " otherwise iterate up through the file looking for a line that
+        " matches.
+        let current_line_no = current_line_no - 1
+        while current_line_no != 0
+            let current_line = lines[current_line_no]
+            if match(current_line, item.begin_pattern) != -1
+                if s:Utils.LineIndent(current_line) == first_indent - 2
+                    " if the line matches, it should be at an indent level
+                    " of two less than the first line to be a proper todo
+                    " set our first_indent to the indentation of the first
+                    " line
+                    let first_line_no = current_line_no
+                    let first_indent = first_indent - 2
+                endif
+                break
+            else
+                if s:Utils.LineIndent(current_line) != first_indent
+                    " break if the current indent is different than the first
+                    " indent but we haven't matched a beginning of a todo item
+                    break
+                endif
+            endif
+            let current_line_no = current_line_no - 1
+        endwhile
+    endif
+    if first_line_no == -1
+        " if we didn't find a first line, return here
+        return
+    endif
+    " find the last line of the todo so we can call getline on the range
+    let current_line_no = first_line_no + 1
+    " increment our line number while the indentation is two more than the
+    " first line
+    while len(lines) > current_line_no && s:Utils.LineIndent(lines[current_line_no]) == (first_indent + 2)
+        let current_line_no = current_line_no + 1
+    endwhile
+
+    let item_lines = lines[first_line_no : current_line_no - 1]
+    call item.ParseLines(item_lines, first_line_no) " A dirty hack for now - TODO refactor to be similar to ItemList.ParseLines
+    return item
+endfunction
 
 
 " Class: ItemList {{{2
@@ -916,7 +969,36 @@ if exists('UnitTest')
     endfunction
 
 
-    "
+    " Test Item {{{2
+    let b:test_item = UnitTest.init("TestItem")
+
+    function! b:test_item.TestGetItemOnLine() dict
+        let here = s:Utils.GetCurrentDirectory()
+        let lines = readfile(here.'/fixtures/testGetItemOnLine.txt')
+        let item = s:Item.GetItemOnLine(1, lines)
+        call self.AssertEquals('Item one', item.text)
+
+        let item = s:Item.GetItemOnLine(3, lines)
+        call self.AssertEquals('nested item', item.text)
+
+        let item = s:Item.GetItemOnLine(4, lines)
+        call self.AssertEquals('Something with multiple lines that continue further and further', item.text)
+        let item = s:Item.GetItemOnLine(5, lines)
+        call self.AssertEquals('Something with multiple lines that continue further and further', item.text)
+        let item = s:Item.GetItemOnLine(6, lines)
+        call self.AssertEquals('Something with multiple lines that continue further and further', item.text)
+
+        let item = s:Item.GetItemOnLine(7, lines)
+        call self.AssertEquals('Another item', item.text)
+
+        let item = s:Item.GetItemOnLine(9, lines)
+        call self.AssertEquals('Another guy after a space', item.text)
+
+        let item = s:Item.GetItemOnLine(10, lines)
+        call self.AssertEquals('One with a date 2010-06-05', item.text)
+        call self.AssertEquals('2010-06-05', item.date)
+    endfunction
+
     " Test Todo {{{2
     let b:test_todo = UnitTest.init("TestTodo")
     
@@ -1119,6 +1201,7 @@ if exists('UnitTest')
     " Test Suite for testing all. Buffer var so we can run from command line {{{2
     let b:test_all = TestSuite.init("TestVikiGTD")
     call b:test_all.AddUnitTest(b:test_todo)
+    call b:test_all.AddUnitTest(b:test_item)
     call b:test_all.AddUnitTest(b:test_todolist)
     call b:test_all.AddUnitTest(b:test_utils)
     call b:test_all.AddUnitTest(b:test_scrape)
