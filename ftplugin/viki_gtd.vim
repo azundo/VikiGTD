@@ -195,25 +195,25 @@ function s:Item.Delete() dict "{{{3
     let project_file = s:Project.GetIndexFile(self.project_name)
     if filereadable(substitute(project_file, '\(\w\+\.viki\)$', '\.\1\.swp', ''))
         echo "Project file for " . self.project_name . " is open - can't modify."
-    else
-        if self.starting_line != -1
-            let project_file_contents = readfile(project_file)
-            call remove(project_file_contents, self.starting_line, self.starting_line + self.GetTreeLineLength() - 1)
-            call writefile(project_file_contents, project_file)
-            let msg_txt = "Removed \"$item$\" from " . self.project_name . '.'
-            if strlen(msg_txt) + strlen(self.text) - 6 < 80
-                let item_txt = self.text
-            else
-                " remove strlen(msg_text) then add 6 for the $item that will
-                " be replaced, then remove 3 for the ellipsis, then remove 1
-                " because we're 0 indexed
-                let item_txt = self.text[:(80 - strlen(msg_txt) + 6 - 3 - 1)] . '...'
-            endif
-            echo substitute(msg_txt, '\$item\$', item_txt, '')
-            return 1
+        return
+    endif
+    if self.starting_line != -1
+        let project_file_contents = readfile(project_file)
+        call remove(project_file_contents, self.starting_line, self.starting_line + self.GetTreeLineLength() - 1)
+        call writefile(project_file_contents, project_file)
+        let msg_txt = "Removed \"$item$\" from " . self.project_name . '.'
+        if strlen(msg_txt) + strlen(self.text) - 6 < 80
+            let item_txt = self.text
         else
-            echo "No starting_line for item - could not remove."
+            " remove strlen(msg_text) then add 6 for the $item that will
+            " be replaced, then remove 3 for the ellipsis, then remove 1
+            " because we're 0 indexed
+            let item_txt = self.text[:(80 - strlen(msg_txt) + 6 - 3 - 1)] . '...'
         endif
+        echo substitute(msg_txt, '\$item\$', item_txt, '')
+        return 1
+    else
+        echo "No starting_line for item - could not remove."
     endif
 endfunction
 
