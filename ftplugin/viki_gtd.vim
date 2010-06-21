@@ -542,6 +542,26 @@ function! s:ItemList.Print(...) dict "{{{3
     return join(lines, "\n")
 endfunction
 
+function! s:ItemList.AddItem(item) dict " {{{3
+    if self.file_name == '' && self.project_name != ''
+        let self.file_name = s:Project.GetIndexFile(self.project_name)
+    endif
+    if self.file_name == '' || !filereadable(self.file_name)
+        echo "No file name for that item list found."
+        return
+    elseif filereadable(substitute(self.file_name, '\(\w\+\.viki\)$', '\.\1\.swp', ''))
+        echo "Project file for " . self.project_name . " is open - can't modify."
+        return
+    elseif self.ending_line == -1
+        echo "No ending line set for this item list - cannot add an item."
+        return
+    endif
+    let file_lines = readfile(self.file_name)
+    let item_line = a:item.Print()
+    call insert(file_lines, item_line, self.ending_line + 1)
+    call writefile(files_lines, self.file_name)
+    echo 'Added ' . item.text . ' to ' self.file_name
+endfunction
 " Class: Todo {{{2
 let s:Todo = copy(s:Item)
 
