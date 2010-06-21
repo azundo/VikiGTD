@@ -850,11 +850,17 @@ if !exists(":MarkTodoUnderCursorComplete")
     command MarkTodoUnderCursorComplete :call s:MarkTodoUnderCursorComplete()
 endif
 
-exe "command! ProjectReviewDaily " . s:ReviewProjects("d")
+if !exists(":ProjectReviewDaily")
+    exe "command! ProjectReviewDaily " . s:ReviewProjects("d")
+endif
 
-exe "command! ProjectReviewWeekly ". s:ReviewProjects("w")
+if !exists(":ProjectReviewWeekly")
+    exe "command! ProjectReviewWeekly ". s:ReviewProjects("w")
+endif
 
-exe "command! ProjectReviewMonthly ". s:ReviewProjects("m")
+if !exists(":ProjectReviewMonthly")
+    exe "command! ProjectReviewMonthly ". s:ReviewProjects("m")
+endif
 
 " Mappings {{{2
 if !hasmapto('<Plug>VikiGTDMarkComplete')
