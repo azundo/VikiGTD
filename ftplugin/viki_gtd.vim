@@ -243,7 +243,7 @@ function! s:Item.ParseLines(lines, ...) dict "{{{3
     let self.text = substitute(self.text, '\s*$', '', '')
     for line in a:lines
         if match(line, self.begin_pattern) != -1
-            throw "vikiGTDError: Item item is improperly constructed - additional starts with a bullet point character (@ or -)."
+            throw "vikiGTDError: Item is improperly constructed - additional line starts with a bullet point character (@ or -)."
         endif
        let stripped_line = substitute(substitute(line, '^\s*', '', ''), '\s*$', '', '')
        let self.text = self.text . ' ' . stripped_line
@@ -1051,14 +1051,14 @@ if exists('UnitTest')
         call new_todolist.ParseLines(lines)
         call self.AssertEquals(len(new_todolist.items), 3, "TodoList should have three items.")
         call self.AssertEquals(new_todolist.items[0].text, "A random item", "First todo item.")
-        call self.AssertEquals(new_todolist.items[0].starting_line, 1)
-        call self.AssertEquals(new_todolist.items[0].line_length, 1)
+        call self.AssertEquals(new_todolist.items[0].starting_line, 1, 'starting line should be 1')
+        call self.AssertEquals(new_todolist.items[0].line_length, 1, 'line length should also be 1')
         call self.AssertEquals(new_todolist.items[1].text, "Another random item that is longer than a single line of text so we can parse this one properly", "Second todo item.")
-        call self.AssertEquals(new_todolist.items[1].starting_line, 2)
-        call self.AssertEquals(new_todolist.items[1].line_length, 2)
+        call self.AssertEquals(new_todolist.items[1].starting_line, 2, 'starting line should be 2')
+        call self.AssertEquals(new_todolist.items[1].line_length, 2, 'line length should also be 2')
         call self.AssertEquals(new_todolist.items[2].text, "Somthing here", "Third todo item.")
-        call self.AssertEquals(new_todolist.items[2].starting_line, 4)
-        call self.AssertEquals(new_todolist.items[2].line_length, 1)
+        call self.AssertEquals(new_todolist.items[2].starting_line, 4, 'starting line should be 4')
+        call self.AssertEquals(new_todolist.items[2].line_length, 1, 'line length should be 1')
     endfunction
     
     function! b:test_todolist.TestTougherFile() dict "{{{3
