@@ -179,6 +179,7 @@ function! s:Project.Scrape() dict " {{{3
     let self.todo_list = project_todo
 
     let project_waiting_for = s:WaitingForList.init()
+    let project_waiting_for.project_name = self.name
     call project_waiting_for.ParseLines(file_lines)
     let self.waiting_for_list = project_waiting_for
 endfunction
@@ -849,6 +850,18 @@ function! s:AddTodoCmd(project_name) " {{{3
     call p.todo_list.AddItem(td)
 endfunction
 
+function! s:AddWaitingForCmd(project_name) " {{{3
+    let wf_text = input("Enter waiting for text:\n")
+    if wf_text == ''
+        return
+    endif
+    let p = s:Project.init(a:project_name)
+    call p.Scrape()
+    let wf = s:Item.init()
+    let wf.text = wf_text
+    call p.waiting_for_list.AddItem(wf)
+endfunction
+
 " Public Functions {{{1
 
 function! VikiGTDGetTodos(filter) "{{{2
@@ -896,6 +909,10 @@ endif
 
 if !exists(":AddTodo")
     command -nargs=1 -complete=custom,b:VikiGTDGetProjectNamesForAutocompletion AddTodo :call s:AddTodoCmd(<f-args>)
+endif
+
+if !exists(":AddWaitingFor")
+    command -nargs=1 -complete=custom,b:VikiGTDGetProjectNamesForAutocompletion AddWaitingFor :call s:AddWaitingForCmd(<f-args>)
 endif
 
 " Mappings {{{2
