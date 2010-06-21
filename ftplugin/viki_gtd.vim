@@ -374,6 +374,7 @@ function! s:ItemList.init() dict "{{{3
     let instance.item_class = s:Item
     let instance.start_pattern = '^\*\*\s*\w\+'
     let instance.starting_line = -1
+    let instance.ending_line = -1
     let instance.file_name = ''
     return instance
 endfunction
