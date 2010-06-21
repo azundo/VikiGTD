@@ -845,55 +845,6 @@ for todo_type in s:todo_types
 
 endfor
 
-" if !exists(":TodosToday")
-"     exe "command TodosToday " . s:OpenTodosInSp('today')
-" endif
-" 
-" if !exists(":TodosThisWeek")
-"      exe "command TodosThisWeek " . s:OpenTodosInSp('thisweek')
-" endif
-" 
-" if !exists(":TodosTomorrow")
-"      exe "command TodosTomorrow " . s:OpenTodosInSp('tomorrow')
-" endif
-" 
-" if !exists(":TodosTodayAndTomorrow")
-"     exe "command TodosTodayAndTomorrow " . s:OpenTodosInSp('todayandtomorrow')
-" endif
-" 
-" if !exists(":TodosOverdue")
-"     exe "command TodosOverdue " . s:OpenTodosInSp('overdue')
-" endif
-" 
-" if !exists(":TodosAll")
-"     exe "command TodosAll " . s:OpenTodosInSp('all')
-" endif
-
-
-" if !exists(":PrintTodosToday")
-"     command PrintTodosToday :call s:PrintTodos('today')
-" endif
-" 
-" if !exists(":PrintTodosThisWeek")
-"     command PrintTodosThisWeek :call s:PrintTodos('thisweek')
-" endif
-" 
-" if !exists(":PrintTodosTomorrow")
-"     command PrintTodosTomorrow :call s:PrintTodos('tomorrow')
-" endif
-" 
-" if !exists(":PrintTodosTodayAndTomorrow")
-"     command PrintTodosTodayAndTomorrow :call s:PrintTodos('todayandtomorrow')
-" endif
-" 
-" if !exists(":PrintTodosOverdue")
-"     command PrintTodosOverdue :call s:PrintTodos('overdue')
-" endif
-" 
-" if !exists(":PrintTodosAll")
-"     command PrintTodosAll :call s:PrintTodos('all')
-" endif
-
 
 if !exists(":MarkTodoUnderCursorComplete")
     command MarkTodoUnderCursorComplete :call s:MarkTodoUnderCursorComplete()
