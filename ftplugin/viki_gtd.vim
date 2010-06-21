@@ -183,6 +183,7 @@ function! s:Item.init() dict "{{{3
     let instance.parent = {}
     let instance.children = []
     let instance.begin_pattern = '^\s*\([-@]\) '
+    let instance.list_class = s:ItemList
     return instance
 endfunction
 
@@ -505,6 +506,13 @@ endfunction
 
 " Class: Todo {{{2
 let s:Todo = copy(s:Item)
+
+function! s:Todo.init() dict " {{{3
+    let instance = s:Item.init()
+    call extend(instance, copy(self), "force")
+    let instance.list_class = s:TodoList
+    return instance
+endfunction
 
 " Class: TodoList {{{2
 let s:TodoList = copy(s:ItemList)
