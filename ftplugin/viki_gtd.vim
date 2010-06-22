@@ -838,7 +838,7 @@ function! s:ReviewProjects(freq) " {{{2
     endif
 endfunction
 
-function! s:AddTodoCmd(project_name) " {{{3
+function! s:AddTodoCmd(project_name) " {{{2
     let todo_text = input("Enter todo text:\n")
     if todo_text == ''
         return
@@ -850,7 +850,7 @@ function! s:AddTodoCmd(project_name) " {{{3
     call p.todo_list.AddItem(td)
 endfunction
 
-function! s:AddWaitingForCmd(project_name) " {{{3
+function! s:AddWaitingForCmd(project_name) " {{{2
     let wf_text = input("Enter waiting for text:\n")
     if wf_text == ''
         return
