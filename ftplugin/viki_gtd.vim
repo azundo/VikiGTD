@@ -589,7 +589,18 @@ function! s:ItemList.AddItem(item) dict " {{{3
         if file_bufnr == bufnr('')
             call append(self.ending_line + 1, item_line) 
         else
-            let exe_txt = "tabe | b " . file_bufnr . " | call append(" . string(self.ending_line + 1) . ", '" . item_line . "') | wq" 
+            let current_tab = tabpagenr()
+            let execute_statements = [
+                        \"tabe",
+                        \"b " . file_bufnr,
+                        \"call append(" . string(self.ending_line + 1) . ", '" . item_line . "')",
+                        \"call cursor(" . string(self.ending_line + 2) . ", 1)",
+                        \" exe \"normal Vgq\"",
+                        \"wq",
+                        \"tabn " . current_tab,
+                        \]
+            let exe_txt = join(execute_statements, ' | ')
+            " echo exe_txt
             exe exe_txt
         endif
     endif
