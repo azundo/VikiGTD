@@ -562,20 +562,37 @@ function! s:ItemList.AddItem(item) dict " {{{3
     if self.file_name == '' && self.project_name != ''
         let self.file_name = s:Project.GetIndexFile(self.project_name)
     endif
+    let file_bufnr = -1
     if self.file_name == '' || !filereadable(self.file_name)
         echo "No file name for that item list found."
-        return
-    elseif filereadable(substitute(self.file_name, '\(\w\+\.viki\)$', '\.\1\.swp', ''))
-        echo "Project file for " . self.project_name . " is open - can't modify."
         return
     elseif self.ending_line == -1
         echo "No ending line set for this item list - cannot add an item."
         return
     endif
-    let file_lines = readfile(self.file_name)
+
+    if filereadable(substitute(self.file_name, '\(\w\+\.viki\)$', '\.\1\.swp', ''))
+        let bufname = matchstr(self.file_name, '\w\+\(Index\)\?.viki$')
+        if bufname != '' && bufnr(bufname) != -1
+            let file_bufnr = bufnr(bufname)
+        else
+            echo "Project file for " . self.project_name . " is open - can't modify."
+            return
+        endif
+    endif
     let item_line = a:item.Print(4)
-    call insert(file_lines, item_line, self.ending_line + 1)
-    call writefile(file_lines, self.file_name)
+    if file_bufnr == -1
+        let file_lines = readfile(self.file_name)
+        call insert(file_lines, item_line, self.ending_line + 1)
+        call writefile(file_lines, self.file_name)
+    else
+        if file_bufnr == bufnr('')
+            call append(self.ending_line + 1, item_line) 
+        else
+            let exe_txt = "tabe | b " . file_bufnr . " | call append(" . string(self.ending_line + 1) . ", '" . item_line . "') | wq" 
+            exe exe_txt
+        endif
+    endif
     echo 'Added ' . a:item.text . ' to ' . self.file_name . '.'
 endfunction
 " Class: Todo {{{2
