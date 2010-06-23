@@ -202,6 +202,12 @@ function! s:Project.GetProjectsToReview(freq, ...) "{{{3
     return to_review
 endfunction
 
+function! s:Project.GetNameFromIndexFile(...) "{{{3
+    TVarArg ['filename', expand('%:p')]
+    let p_name_match = matchlist(filename, '/\(\w\+\)\(/Index\)\?\(\.viki\)$')
+    return get(p_name_match, 1, '')
+endfunction
+
 "
 " Class: Item {{{2
 "
@@ -1013,6 +1019,12 @@ if exists('UnitTest')
         let test_projects = here . '/fixtures/projects'
         call self.AssertEquals(test_projects . '/MajorDailyProject/Index.viki', s:Project.GetIndexFile('MajorDailyProject', test_projects))
         call self.AssertEquals(test_projects . '/SingleFileProject.viki', s:Project.GetIndexFile('SingleFileProject', test_projects))
+    endfunction
+
+    function! b:test_project.TestGetNameFromIndexFile() dict
+        call self.AssertEquals('Test', s:Project.GetNameFromIndexFile('/whatever/Test.viki'))
+        call self.AssertEquals('Test', s:Project.GetNameFromIndexFile('/whatever/Test/Index.viki'))
+        call self.AssertEquals('', s:Project.GetNameFromIndexFile('/whatever/Test/Index.other'))
     endfunction
 
 
