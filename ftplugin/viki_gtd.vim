@@ -566,6 +566,17 @@ function! s:ItemList.GetListForLine(line_no, ...) " {{{3
     throw "vikiGTDError: No list on given line."
 endfunction
 
+function! s:ItemList.Filter(filter_function) dict " {{{3
+    let filtered_list = copy(self.items)
+    call filter(filtered_list, a:filter_function)
+    for item in filtered_list
+        call filter(item.children, a:filter_function)
+    endfor
+    let new_list = self.init()
+    let new_list.items = filtered_list
+    return new_list
+endfunction
+
 function! s:ItemList.FilterByDate(start_date, end_date) dict "{{{3
     let filtered_list = copy(self.items)
     let filter_function = 'v:val.date != "" && s:Utils.CompareDates(v:val.date, a:start_date) >= 0 && s:Utils.CompareDates(v:val.date, a:end_date) <= 0'
