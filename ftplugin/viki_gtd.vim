@@ -707,11 +707,12 @@ function! s:SetupList.init() dict "{{{3
     return instance
 endfunction
 
-function! s:SetupList.GetTodaysSetup() dict "{{{3
+function! s:SetupList.GetSetupForDate(...) dict "{{{3
+    TVarArg ['date', strftime("%Y-%m-%d")]
     let setup = self.init()
-    let todays_file = g:vikiGtdHabitsDir . '/weeks/days/' . strftime("%Y-%m-%d") . '.viki' 
-    if filereadable(todays_file)
-        call setup.ParseLines(readfile(todays_file), 0, todays_file)
+    let setup_file = g:vikiGtdHabitsDir . '/weeks/days/' . date . '.viki' 
+    if filereadable(setup_file)
+        call setup.ParseLines(readfile(setup_file), 0, setup_file)
     endif
     return setup
 endfunction
@@ -851,7 +852,7 @@ endfunction
 function! s:AddCursorItemToSetup() " {{{2
     let current_item = s:Item.GetItemTreeOnLine()
     let current_item.project_name = s:Project.GetNameFromIndexFile()
-    let setup = s:SetupList.GetTodaysSetup()
+    let setup = s:SetupList.GetSetupForDate()
     if setup.starting_line == -1
         return "echo 'No setup for today yet!'"
     endif
