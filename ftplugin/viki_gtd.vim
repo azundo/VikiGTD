@@ -558,53 +558,43 @@ function! s:ItemList.Print(...) dict "{{{3
     return join(lines, "\n")
 endfunction
 
-function! s:ItemList.AddItem(item) dict " {{{3
+function! s:ItemList.AddItem(item, ...) dict " {{{3
+    TVarArg ['do_execute', 1]
+    let exe_txt = ''
     if self.file_name == '' && self.project_name != ''
         let self.file_name = s:Project.GetIndexFile(self.project_name)
     endif
-    let file_bufnr = -1
-    if self.file_name == '' || !filereadable(self.file_name)
-        echo "No file name for that item list found."
-        return
-    elseif self.ending_line == -1
-        echo "No ending line set for this item list - cannot add an item."
-        return
-    endif
 
-    if filereadable(substitute(self.file_name, '\(\w\+\.viki\)$', '\.\1\.swp', ''))
+    if self.file_name == '' || !filereadable(self.file_name)
+        let exe_txt = 'echo "No file name for that item list found."'
+    elseif self.ending_line == -1
+        let exe_txt = 'echo "No ending line set for this item list - cannot add an item."'
+    elseif filereadable(substitute(self.file_name, '\(\w\+\.viki\)$', '\.\1\.swp', ''))
         let bufname = matchstr(self.file_name, '\w\+\(Index\)\?.viki$')
-        if bufname != '' && bufnr(bufname) != -1
-            let file_bufnr = bufnr(bufname)
-        else
-            echo "Project file for " . self.project_name . " is open - can't modify."
-            return
+        if bufname == '' || bufnr(bufname) == -1
+            let exe_txt = 'echo "Project file for ' . self.project_name . ' is open - cannot modify."'
         endif
     endif
-    let item_line = a:item.Print(4)
-    if file_bufnr == -1
-        let file_lines = readfile(self.file_name)
-        call insert(file_lines, item_line, self.ending_line + 1)
-        call writefile(file_lines, self.file_name)
-    else
-        if file_bufnr == bufnr('')
-            call append(self.ending_line + 1, item_line) 
-        else
-            let current_tab = tabpagenr()
-            let execute_statements = [
-                        \"tabe",
-                        \"b " . file_bufnr,
-                        \"call append(" . string(self.ending_line + 1) . ", '" . item_line . "')",
-                        \"call cursor(" . string(self.ending_line + 2) . ", 1)",
-                        \" exe \"normal Vgq\"",
-                        \"wq",
-                        \"tabn " . current_tab,
-                        \]
-            let exe_txt = join(execute_statements, ' | ')
-            " echo exe_txt
-            exe exe_txt
-        endif
+    if exe_txt == ''
+        let item_line = a:item.Print(4)
+        let current_tab = tabpagenr()
+        let execute_statements = [
+            \"tabe " . self.file_name,
+            \"call append(" . string(self.ending_line + 1) . ", '" . item_line . "')",
+            \"call cursor(" . string(self.ending_line + 2) . ", 1)",
+            \" exe \"normal Vgq\"",
+            \"wq",
+            \"tabn " . current_tab,
+            \"echo 'Added " . a:item.text . " to " . self.file_name . ".'"
+            \]
+
+        let exe_txt = join(execute_statements, ' | ')
     endif
-    echo 'Added ' . a:item.text . ' to ' . self.file_name . '.'
+    " echo exe_txt
+    if do_execute == 1
+        exe exe_txt
+    endif
+    return exe_txt
 endfunction
 " Class: Todo {{{2
 let s:Todo = copy(s:Item)
@@ -875,7 +865,7 @@ function! s:AddTodoCmd(project_name) " {{{2
     call p.Scrape()
     let td = s:Todo.init()
     let td.text = todo_text
-    call p.todo_list.AddItem(td)
+    return p.todo_list.AddItem(td, 0)
 endfunction
 
 function! s:AddWaitingForCmd(project_name) " {{{2
@@ -887,7 +877,7 @@ function! s:AddWaitingForCmd(project_name) " {{{2
     call p.Scrape()
     let wf = s:Item.init()
     let wf.text = wf_text
-    call p.waiting_for_list.AddItem(wf)
+    return p.waiting_for_list.AddItem(wf, 0)
 endfunction
 
 " Public Functions {{{1
@@ -936,11 +926,11 @@ if !exists(":ProjectReviewMonthly")
 endif
 
 if !exists(":AddTodo")
-    command -nargs=1 -complete=custom,b:VikiGTDGetProjectNamesForAutocompletion AddTodo :call s:AddTodoCmd(<f-args>)
+    command -nargs=1 -complete=custom,b:VikiGTDGetProjectNamesForAutocompletion AddTodo :exe s:AddTodoCmd(<f-args>)
 endif
 
 if !exists(":AddWaitingFor")
-    command -nargs=1 -complete=custom,b:VikiGTDGetProjectNamesForAutocompletion AddWaitingFor :call s:AddWaitingForCmd(<f-args>)
+    command -nargs=1 -complete=custom,b:VikiGTDGetProjectNamesForAutocompletion AddWaitingFor :exe s:AddWaitingForCmd(<f-args>)
 endif
 
 " Mappings {{{2
