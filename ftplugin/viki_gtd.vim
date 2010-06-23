@@ -388,9 +388,8 @@ function! s:Item.GetTopLevelItemForLine(...) dict " {{{{3
     endif
 endfunction
 
-function! s:Item.GetItemTreeOnLine(line, ...) dict " {{{3
-    TVarArg ['lines', getline(0, '$')]
-    let line = a:line
+function! s:Item.GetItemTreeOnLine(...) dict " {{{3
+    TVarArg ['line', line('.') - 1], ['lines', getline(0, '$')]
     while line >= 0 && s:Utils.LineIndent(lines[line]) != 4
         if s:Utils.LineIndent(lines[line]) == 0 && lines[line] != ""
             return self.init()
