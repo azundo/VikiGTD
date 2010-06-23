@@ -21,6 +21,9 @@ set cpo&vim " set this to allow linecontinuations. cpo is reset at the end
 if !exists("g:vikiGtdProjectsDir")
     let g:vikiGtdProjectsDir = $HOME.'/Wikis/projects'
 endif
+if !exists("g:vikiGtdHabitsDir")
+    let g:vikiGtdHabitsDir = $HOME.'/Wikis/habits'
+endif
 
 " Script var definitions {{{1
 "
@@ -693,6 +696,24 @@ function! s:WaitingForList.init() dict "{{{3
     call extend(instance, copy(s:WaitingForList), "force")
     let instance.start_pattern = '^\*\*\s*Waiting'
     return instance
+endfunction
+
+" Class: SetupList {{{2
+let s:SetupList = copy(s:ItemList)
+function! s:SetupList.init() dict "{{{3
+    let instance = s:ItemList.init()
+    call extend(instance, copy(s:SetupList), "force")
+    let instance.start_pattern = '^\*\*\s*Set\( \)\?up'
+    return instance
+endfunction
+
+function! s:SetupList.GetTodaysSetup() dict "{{{3
+    let setup = self.init()
+    let todays_file = g:vikiGtdHabitsDir . '/weeks/days/' . strftime("%Y-%m-%d") . '.viki' 
+    if filereadable(todays_file)
+        call setup.ParseLines(readfile(todays_file), 0, todays_file)
+    endif
+    return setup
 endfunction
 
 
