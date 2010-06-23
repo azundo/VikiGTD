@@ -365,6 +365,26 @@ function! s:Item.GetItemOnLine(...) dict " {{{3
     return item
 endfunction
 
+function! s:Item.GetTopLevelItemForLine(...) dict " {{{{3
+    TVarArg ['current_line_no', line('.') - 1], ['lines', getline(0, '$')]
+    let top_item = self.init()
+    while current_line_no >= 0 && s:Utils.LineIndent(lines[current_line_no]) != 4
+        if s:Utils.LineIndent(lines[current_line_no]) == 0 && lines[current_line_no] != ""
+            return
+        endif
+        let current_line_no = current_line_no - 1
+    endwhile
+    if match(lines[current_line_no], top_item.begin_pattern) != -1
+        let first_line_no = current_line_no
+        let current_line_no = current_line_no + 1
+        while s:Utils.LineIndent(lines[current_line_no]) == 6
+            let current_line_no = current_line_no + 1
+        endwhile
+        call top_item.ParseLines(lines[first_line_no : current_line_no - 1])
+        return top_item
+    endif
+endfunction
+
 function! s:Item.GetItemTreeOnLine(line, ...) dict " {{{3
     TVarArg ['lines', getline(0, '$')]
     let line = a:line
@@ -717,29 +737,6 @@ function! s:OpenItemsInSp(item_type, filter) "{{{2
 endfunction
 
 
-function! s:GetTopLevelTodoForLine(...) "{{{2
-    if a:0 > 0
-        let current_line_no = a:1
-    else
-        let current_line_no = line('.')
-    endif
-    while current_line_no > 0 && s:Utils.LineIndent(getline(current_line_no)) != 4
-        if s:Utils.LineIndent(getline(current_line_no)) == 0 && getline(current_line_no) != ""
-            return
-        endif
-        let current_line_no = current_line_no - 1
-    endwhile
-    if match(getline(current_line_no), s:todo_begin) != -1
-        let first_line_no = current_line_no
-        let current_line_no = current_line_no + 1
-        while s:Utils.LineIndent(getline(current_line_no)) == 6
-            let current_line_no = current_line_no + 1
-        endwhile
-        let top_todo = s:Todo.init()
-        call top_todo.ParseLines(getline(first_line_no, current_line_no - 1))
-        return top_todo
-    endif
-endfunction
 
 function! s:MarkTodoUnderCursorComplete() "{{{2
     let current_todo = s:Todo.GetItemOnLine()
@@ -748,7 +745,7 @@ function! s:MarkTodoUnderCursorComplete() "{{{2
         return
     endif
     if current_todo.project_name == ""
-        let toplevel_todo = s:GetTopLevelTodoForLine()
+        let toplevel_todo = s:Todo.GetTopLevelItemForLine()
         let current_todo.project_name = toplevel_todo.project_name
     endif
     if current_todo.project_name != ""
