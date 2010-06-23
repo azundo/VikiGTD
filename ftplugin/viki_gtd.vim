@@ -748,7 +748,7 @@ function! s:GetItemLists(list_type, filter) " {{{2
 endfunction
 
 
-function! s:PrintItems(list_type, filter)
+function! s:PrintItems(list_type, filter) " {{{2
     let filtered_items = s:GetItemLists(a:list_type, a:filter)
     let split_items = split(filtered_items.Print(1), "\n")
     if len(split_items) > 0
