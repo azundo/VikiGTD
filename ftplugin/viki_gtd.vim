@@ -705,14 +705,14 @@ function! s:PrintItems(list_type, filter)
     endif
 endfunction
 
-function! s:OpenTodosInSp(filter) "{{{2
+function! s:OpenItemsInSp(item_type, filter) "{{{2
     let commands = []
     call add(commands, "rightb vsp /tmp/vikiList.viki")
     call add(commands, "set buftype=nofile")
     call add(commands, "set bufhidden=delete")
     call add(commands, "setlocal noswapfile")
     call add(commands, "map <buffer> q :q<CR>")
-    call add(commands, "PrintTodos" . a:filter)
+    call add(commands, "Print" . a:item_type .  a:filter)
     return ':' . join(commands, ' | ')
 endfunction
 
@@ -847,7 +847,7 @@ let s:date_ranges = ['', 'Today', 'Tomorrow', 'ThisWeek', 'TodayAndTomorrow', 'O
 for date_range in s:date_ranges
 
     if !exists(":Todos" . date_range)
-        exe "command Todos" . date_range .  " " . s:OpenTodosInSp(date_range)
+        exe "command Todos" . date_range .  " " . s:OpenItemsInSp("Todos", date_range)
     endif
 
     if !exists(":PrintTodos" . date_range)
