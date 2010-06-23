@@ -760,6 +760,19 @@ function! s:PrintItems(list_type, filter)
     endif
 endfunction
 
+function! s:CopyUndoneTodos() " {{{2
+    let setup = s:SetupList.GetSetupForDate(strftime("%Y-%m-%d", localtime() - 24*60*60))
+    let filtered_setup = setup.Filter('v:val.is_complete == 0')
+    let split_items = split(filtered_setup.Print(1), "\n")
+    if len(split_items) > 0
+        call append(line('.'), split_items)
+        " format the items to the correct text width with gq
+        exe "normal V".len(split_items)."jgq"
+    else
+        echo "No undone todos found in yesterday's file."
+    endif
+endfunction
+
 function! s:OpenItemsInSp(item_type, filter) "{{{2
     let commands = []
     call add(commands, "rightb vsp /tmp/vikiList.viki")
@@ -929,6 +942,10 @@ endif
 
 if !exists(":AddWaitingFor")
     command -nargs=1 -complete=custom,b:VikiGTDGetProjectNamesForAutocompletion AddWaitingFor :exe s:AddWaitingForCmd(<f-args>)
+endif
+
+if !exists(":CopyUndoneTodos")
+    command CopyUndoneTodos :call s:CopyUndoneTodos()
 endif
 
 " Mappings {{{2
