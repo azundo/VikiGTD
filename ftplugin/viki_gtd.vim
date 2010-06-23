@@ -848,6 +848,16 @@ function! s:AddWaitingForCmd(project_name) " {{{2
     return p.waiting_for_list.AddItem(wf, 0)
 endfunction
 
+function! s:AddCursorItemToSetup() " {{{2
+    let current_item = s:Item.GetItemTreeOnLine()
+    let current_item.project_name = s:Project.GetNameFromIndexFile()
+    let setup = s:SetupList.GetTodaysSetup()
+    if setup.starting_line == -1
+        return "echo 'No setup for today yet!'"
+    endif
+    return setup.AddItem(current_item, 0)
+endfunction
+
 " Public Functions {{{1
 
 function! VikiGTDGetTodos(filter) "{{{2
@@ -921,6 +931,12 @@ if !hasmapto('<Plug>VikiGTDGoToProject')
 endif
 noremap <buffer> <script> <unique> <Plug>VikiGTDGoToProject <SID>GoToProject
 noremap <SID>GoToProject  :<C-R>=<SID>GoToProject(expand("<cword>"))<CR><CR>
+
+if !hasmapto('<Plug>VikiGTDAddCursorItemToSetup')
+    map <buffer> <unique> <LocalLeader>as <Plug>VikiGTDAddCursorItemToSetup
+endif
+noremap <buffer> <script> <unique> <Plug>VikiGTDAddCursorItemToSetup <SID>AddCursorItemToSetup
+noremap <SID>AddCursorItemToSetup  :<C-R>=<SID>AddCursorItemToSetup()<CR><CR>
 
 
 " Highlight groups {{{1
