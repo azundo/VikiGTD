@@ -184,6 +184,24 @@ function! s:Project.Scrape() dict " {{{3
     let self.waiting_for_list = project_waiting_for
 endfunction
 
+function! s:Project.GetProjectsToReview(freq, ...) "{{{2
+    TVarArg ['directory', g:vikiGtdProjectsDir]
+    let project_indexes = self.GetAllIndexFiles(directory)
+    let to_review = []
+    for filename in project_indexes
+        try
+            let contents = readfile(filename)
+            let review_freq = get(matchlist(contents, '^% vikiGTD:.*review\s\==\s\=\([dwm]\)'), 1, '')
+            if review_freq == a:freq
+                call add(to_review, filename)
+            endif
+        catch
+            echoerr v:exception
+        endtry
+    endfor
+    return to_review
+endfunction
+
 "
 " Class: Item {{{2
 "
@@ -771,30 +789,9 @@ function! s:GoToProject(project_name) "{{{2
     endtry
 endfunction
 
-function! s:GetProjectsToReview(freq, ...) "{{{2
-    if a:0 > 0
-        let directory = a:1
-    else
-        let directory = g:vikiGtdProjectsDir
-    endif
-    let project_indexes = s:Project.GetAllIndexFiles(directory)
-    let to_review = []
-    for filename in project_indexes
-        try
-            let contents = readfile(filename)
-            let review_freq = get(matchlist(contents, '^% vikiGTD:.*review\s\==\s\=\([dwm]\)'), 1, '')
-            if review_freq == a:freq
-                call add(to_review, filename)
-            endif
-        catch
-            echoerr v:exception
-        endtry
-    endfor
-    return to_review
-endfunction
 
 function! s:ReviewProjects(freq) " {{{2
-    let projects = s:GetProjectsToReview(a:freq)
+    let projects = s:Project.GetProjectsToReview(a:freq)
     if len(projects) != 0
         return 'rightb vsp | args ' . join(projects)
     else
@@ -1247,7 +1244,7 @@ if exists('UnitTest')
 
     function! b:test_scrape.TestDailyReviewScrape() dict
         let project_dir = s:Utils.GetCurrentDirectory().'/fixtures/projects'
-        let daily_reviews = s:GetProjectsToReview("d", project_dir)
+        let daily_reviews = s:Project.GetProjectsToReview("d", project_dir)
         " echo "Daily reviews:" . string(daily_reviews)
         call self.AssertNotEquals(-1, index(daily_reviews, project_dir . '/DailyProject.viki'), string(daily_reviews) . ' does not contain DailyProject.viki')
         call self.AssertNotEquals(-1, index(daily_reviews, project_dir . '/MajorDailyProject/Index.viki'), string(daily_reviews) . ' does not contain MajorDailyProject/Index.viki')
