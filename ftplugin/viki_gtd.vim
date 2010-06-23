@@ -858,6 +858,10 @@ for date_range in s:date_ranges
         exe "command PrintWfs" . date_range . " :call s:PrintItems(\"waiting_for_list\", \"" . date_range . "\")"
     endif
 
+    if !exists(":Wfs" . date_range)
+        exe "command Wfs" . date_range .  " " . s:OpenItemsInSp("Wfs", date_range)
+    endif
+
 endfor
 
 
