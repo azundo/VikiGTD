@@ -778,7 +778,6 @@ function! s:MarkTodoUnderCursorComplete() "{{{2
 endfunction
 
 function! s:GoToProject(project_name) "{{{2
-    echo a:project_name
     try
         let project_index = s:Project.GetIndexFile(a:project_name)
         return 'rightb vsp ' . fnameescape(project_index)
