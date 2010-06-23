@@ -32,10 +32,7 @@ let s:todo_begin = '^\s*\([-@]\) '
 "
 let s:Utils = {}
 function! s:Utils.GetCurrentDirectory() dict "{{{3
-    let current_buf = expand("%:p")
-    let split_path = split(current_buf, '/')
-    let current_dir = '/'.join(remove(split_path, 0, -2), '/')
-    return current_dir
+    return fnamemodify(expand("%:p"), ":h")
 endfunction
 
 function! s:Utils.LineIndent(line) dict "{{{3
