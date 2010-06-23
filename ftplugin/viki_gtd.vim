@@ -692,12 +692,17 @@ function! s:GetItemLists(list_type, filter) " {{{2
     return filtered_items
 endfunction
 
-function! s:PrintTodos(filter) "{{{2
-    let filtered_todos = s:GetTodos(a:filter)
-    let split_todos = split(filtered_todos.Print(1), "\n")
-    call append(line('.'), split_todos)
-    " format the todos to the correct text width with gq
-    exe "normal V".len(split_todos)."jgq"
+
+function! s:PrintItems(list_type, filter)
+    let filtered_items = s:GetItemLists(a:list_type, a:filter)
+    let split_items = split(filtered_items.Print(1), "\n")
+    if len(split_items) > 0
+        call append(line('.'), split_items)
+        " format the items to the correct text width with gq
+        exe "normal V".len(split_items)."jgq"
+    else
+        echo "No items found for that query."
+    endif
 endfunction
 
 function! s:OpenTodosInSp(filter) "{{{2
@@ -838,16 +843,17 @@ endfunction
 "
 " Commands {{{2
 "
-let s:todo_types = ['', 'Today', 'Tomorrow', 'ThisWeek', 'TodayAndTomorrow', 'Overdue', 'All']
-for todo_type in s:todo_types
+let s:date_ranges = ['', 'Today', 'Tomorrow', 'ThisWeek', 'TodayAndTomorrow', 'Overdue', 'All']
+for date_range in s:date_ranges
 
-    if !exists(":Todos" . todo_type)
-        exe "command Todos" . todo_type .  " " . s:OpenTodosInSp(todo_type)
+    if !exists(":Todos" . date_range)
+        exe "command Todos" . date_range .  " " . s:OpenTodosInSp(date_range)
     endif
 
-    if !exists(":PrintTodos" . todo_type)
-        exe "command PrintTodos" . todo_type . " :call s:PrintTodos(\"" . todo_type . "\")"
+    if !exists(":PrintTodos" . date_range)
+        exe "command PrintTodos" . date_range . " :call s:PrintItems(\"todo_list\", \"" . date_range . "\")"
     endif
+
 
 endfor
 
