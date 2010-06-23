@@ -646,11 +646,11 @@ function! s:ItemList.AddItem(item, ...) dict " {{{3
         endif
     endif
     if exe_txt == ''
-        let item_line = a:item.Print(4)
+        let item_lines = split(a:item.Print(4, 1, 1), "\n")
         let current_tab = tabpagenr()
         let execute_statements = [
             \"tabe " . self.file_name,
-            \"call append(" . string(self.ending_line + 1) . ", '" . item_line . "')",
+            \"call append(" . string(self.ending_line + 1) . ", " . string(item_lines) . ")",
             \"call cursor(" . string(self.ending_line + 2) . ", 1)",
             \" exe \"normal Vgq\"",
             \"wq",
