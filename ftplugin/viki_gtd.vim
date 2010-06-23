@@ -645,7 +645,7 @@ let s:Todo = copy(s:Item)
 
 function! s:Todo.init() dict " {{{3
     let instance = s:Item.init()
-    call extend(instance, copy(self), "force")
+    call extend(instance, copy(s:Todo), "force")
     let instance.list_class = s:TodoList
     return instance
 endfunction
@@ -657,7 +657,7 @@ function! s:TodoList.init() dict "{{{3
     let instance = s:ItemList.init()
     " "force" means that we override anything in instance with anything in
     " copy of self
-    call extend(instance, copy(self), "force")
+    call extend(instance, copy(s:TodoList), "force")
     let instance.item_class = s:Todo
     let instance.ParseTodo = instance.ParseItem
     let instance.start_pattern = '^\*\*\s*To[dD]o'
@@ -668,7 +668,7 @@ endfunction
 let s:WaitingForList = copy(s:ItemList)
 function! s:WaitingForList.init() dict "{{{3
     let instance = s:ItemList.init()
-    call extend(instance, copy(self), "force")
+    call extend(instance, copy(s:WaitingForList), "force")
     let instance.start_pattern = '^\*\*\s*Waiting'
     return instance
 endfunction
