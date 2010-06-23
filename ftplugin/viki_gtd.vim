@@ -854,6 +854,9 @@ for date_range in s:date_ranges
         exe "command PrintTodos" . date_range . " :call s:PrintItems(\"todo_list\", \"" . date_range . "\")"
     endif
 
+    if !exists(":PrintWfs" . date_range)
+        exe "command PrintWfs" . date_range . " :call s:PrintItems(\"waiting_for_list\", \"" . date_range . "\")"
+    endif
 
 endfor
 
