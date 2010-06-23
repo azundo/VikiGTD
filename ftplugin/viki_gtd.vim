@@ -678,32 +678,6 @@ endfunction
 " Private Functions {{{1
 "
 
-function! s:GetTodos(filter) "{{{2
-    let all_projects = s:Project.ScrapeDirectory()
-    let all_todo_lists = []
-    for proj in values(all_projects)
-        if proj.todo_list != {} && len(proj.todo_list.items) != 0
-            call add(all_todo_lists, proj.todo_list)
-        endif
-    endfor
-    let all_todos_list = s:TodoList.CombineLists(all_todo_lists)
-    let filtered_todos = all_todos_list.FilterByNaturalLanguageDate(a:filter)
-    return filtered_todos
-endfunction
-
-function! s:GetWaitingFors(filter) " {{{2
-    let all_projects = s:Project.ScrapeDirectory()
-    let all_wf_lists = []
-    for proj in values(all_projects)
-        if proj.waiting_for_list != {}
-            call add(all_wf_lists, proj.waiting_for_list)
-        endif
-    endfor
-    let all_wfs_list = s:WaitingForList.CombineLists(all_wf_lists)
-    let filtered_wfs = all_wfs_list.FilterByNaturalLanguageDate(a:filter)
-    return filtered_wfs
-endfunction
-
 function! s:GetItemLists(list_type, filter) " {{{2
     let all_projects = values(s:Project.ScrapeDirectory())
     let all_item_lists = []
@@ -852,7 +826,7 @@ endfunction
 " Public Functions {{{1
 
 function! VikiGTDGetTodos(filter) "{{{2
-    return s:GetTodos(a:filter)
+    return s:GetItemLists('todo_list', a:filter)
 endfunction
 
 function! b:VikiGTDGetProjectNamesForAutocompletion(...) "{{{2
@@ -1286,24 +1260,6 @@ if exists('UnitTest')
 
     let b:test_get_item_lists = UnitTest.init("TestGetItems")
 
-    function! b:test_get_item_lists.TestGetItemListsCompare() dict
-        let todos = s:GetTodos('All')
-        let items = s:GetItemLists('todo_list', 'All')
-        " echo "start of todos"
-        " for item in todos.items
-        "     echo item.text
-        " endfor
-        " echo "start of items"
-
-        " for item in items.items
-        "     echo item.text
-        " endfor
-        call self.AssertEquals(len(todos.items), len(items.items))
-        let wfs = s:GetWaitingFors('All')
-        let items = s:GetItemLists('waiting_for_list', 'All')
-        call self.AssertEquals(len(wfs.items), len(items.items))
-    endfunction
-    
 
     " Test Suite for testing all. Buffer var so we can run from command line {{{2
     let b:test_all = TestSuite.init("TestVikiGTD")
