@@ -755,6 +755,7 @@ function! s:MarkTodoUnderCursorComplete() "{{{2
     endif
     if current_todo.starting_line != -1
         call setline(current_todo.starting_line + 1, substitute(getline(current_todo.starting_line + 1), '^\(\s*\)@', '\1-', ''))
+        exe "w"
     endif
 endfunction
 
