@@ -294,10 +294,9 @@ function! s:Item.Print(...) dict " {{{3
     return join(lines, "\n")
 endfunction
 
-function! s:Item.GetItemOnLine(line, ...) dict " {{{3
-    TVarArg ['lines', getline(0, '$')]
+function! s:Item.GetItemOnLine(...) dict " {{{3
+    TVarArg ['current_line_no', line('.') - 1], ['lines', getline(0, '$')]
     let item = self.init()
-    let current_line_no = a:line
     let current_line = lines[current_line_no]
     let first_indent = s:Utils.LineIndent(current_line)
     let first_line_no = -1
@@ -693,64 +692,6 @@ function! s:OpenTodosInSp(filter) "{{{2
     return ':' . join(commands, ' | ')
 endfunction
 
-function! s:GetTodoForLine(...) "{{{2
-    if a:0 > 0
-        let current_line_no = a:1
-    else
-        let current_line_no = line('.')
-    endif
-
-    let current_line_no = line('.')
-    let current_line = getline(current_line_no)
-    let first_indent = s:Utils.LineIndent(current_line)
-    let first_line_no = -1
-    if match(current_line, s:todo_begin) != -1
-        " if the current line matches the beginning of a todo, save it as the
-        " first line
-        let first_line_no = current_line_no
-    else
-        " otherwise iterate up through the file looking for a line that
-        " matches.
-        let current_line_no = current_line_no - 1
-        while current_line_no != 0
-            let current_line = getline(current_line_no)
-            if match(current_line, s:todo_begin) != -1
-                if s:Utils.LineIndent(current_line) == first_indent - 2
-                    " if the line matches, it should be at an indent level
-                    " of two less than the first line to be a proper todo
-                    " set our first_indent to the indentation of the first
-                    " line
-                    let first_line_no = current_line_no
-                    let first_indent = first_indent - 2
-                endif
-                break
-            else
-                if s:Utils.LineIndent(current_line) != first_indent
-                    " break if the current indent is different than the first
-                    " indent but we haven't matched a beginning of a todo item
-                    break
-                endif
-            endif
-            let current_line_no = current_line_no - 1
-        endwhile
-    endif
-    if first_line_no == -1
-        " if we didn't find a first line, return here
-        return
-    endif
-    " find the last line of the todo so we can call getline on the range
-    let current_line_no = first_line_no + 1
-    " increment our line number while the indentation is two more than the
-    " first line
-    while s:Utils.LineIndent(getline(current_line_no)) == (first_indent + 2)
-        let current_line_no = current_line_no + 1
-    endwhile
-
-    let todo_lines = getline(first_line_no, current_line_no - 1)
-    let current_todo = s:Todo.init()
-    call current_todo.ParseLines(todo_lines, first_line_no - 1) " A dirty hack for now - TODO refactor to be similar to ItemList.ParseLines
-    return current_todo
-endfunction
 
 function! s:GetTopLevelTodoForLine(...) "{{{2
     if a:0 > 0
@@ -777,7 +718,7 @@ function! s:GetTopLevelTodoForLine(...) "{{{2
 endfunction
 
 function! s:MarkTodoUnderCursorComplete() "{{{2
-    let current_todo = s:GetTodoForLine()
+    let current_todo = s:Todo.GetItemOnLine()
     if current_todo.is_complete == 1
         echo "Todo is already marked complete."
         return
