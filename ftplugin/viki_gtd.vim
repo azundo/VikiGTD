@@ -184,7 +184,7 @@ function! s:Project.Scrape() dict " {{{3
     let self.waiting_for_list = project_waiting_for
 endfunction
 
-function! s:Project.GetProjectsToReview(freq, ...) "{{{2
+function! s:Project.GetProjectsToReview(freq, ...) "{{{3
     TVarArg ['directory', g:vikiGtdProjectsDir]
     let project_indexes = self.GetAllIndexFiles(directory)
     let to_review = []
