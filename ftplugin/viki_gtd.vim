@@ -371,7 +371,7 @@ function! s:Item.GetItemOnLine(...) dict " {{{3
     return item
 endfunction
 
-function! s:Item.GetTopLevelItemForLine(...) dict " {{{{3
+function! s:Item.GetTopLevelItemForLine(...) dict " {{{3
     TVarArg ['current_line_no', line('.') - 1], ['lines', getline(0, '$')]
     let top_item = self.init()
     while current_line_no >= 0 && s:Utils.LineIndent(lines[current_line_no]) != 4
