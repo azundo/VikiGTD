@@ -797,6 +797,10 @@ function! s:MarkTodoUnderCursorComplete() "{{{2
         echo "Todo is already marked complete."
         return
     endif
+    if current_todo.starting_line != -1
+        call setline(current_todo.starting_line + 1, substitute(getline(current_todo.starting_line + 1), '^\(\s*\)@', '\1-', ''))
+        exe "w"
+    endif
     if current_todo.project_name == ""
         let toplevel_todo = s:Todo.GetTopLevelItemForLine()
         let current_todo.project_name = toplevel_todo.project_name
@@ -826,10 +830,6 @@ function! s:MarkTodoUnderCursorComplete() "{{{2
         catch /vikiGTDError/
             echo 'Could not find project ' . current_todo.project_name . '. Not removing any todo item.'
         endtry
-    endif
-    if current_todo.starting_line != -1
-        call setline(current_todo.starting_line + 1, substitute(getline(current_todo.starting_line + 1), '^\(\s*\)@', '\1-', ''))
-        exe "w"
     endif
 endfunction
 
