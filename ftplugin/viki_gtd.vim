@@ -24,6 +24,9 @@ endif
 if !exists("g:vikiGtdHabitsDir")
     let g:vikiGtdHabitsDir = $HOME.'/Wikis/habits'
 endif
+if !exists("g:vikiGtdDB")
+    let g:vikiGtdDB = $HOME.'/.vim/.vikiGtdDB'
+endif
 
 " Script var definitions {{{1
 "
@@ -893,6 +896,20 @@ function! s:AddCursorItemToSetup() " {{{2
     return setup.AddItem(current_item, 0)
 endfunction
 
+function! s:SearchVikiGTD(...) " {{{2
+python << EOF
+import sys
+import xapian
+import vim
+sys.path.insert(0, '/home/benjamin/.vim/py')
+from viki_search import search_database
+db_loc = vim.eval('g:vikiGtdDB')
+db = xapian.Database(db_loc)
+results = search_database(" ".join(vim.eval("a:000")), db)
+print results
+EOF
+endfunction
+
 " Public Functions {{{1
 
 function! VikiGTDGetTodos(filter) "{{{2
@@ -956,6 +973,10 @@ endif
 
 if !exists(":CopyUndoneTodos")
     command CopyUndoneTodos :call s:CopyUndoneTodos()
+endif
+
+if !exists(":SearchVikiGTD")
+    command -nargs=? SearchVikiGTD :call s:SearchVikiGTD(<f-args>)
 endif
 
 " Mappings {{{2
