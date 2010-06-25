@@ -766,7 +766,12 @@ function! s:PrintItems(list_type, filter) " {{{2
 endfunction
 
 function! s:CopyUndoneTodos() " {{{2
-    let setup = s:SetupList.GetSetupForDate(strftime("%Y-%m-%d", localtime() - 24*60*60))
+    let setup = s:SetupList.init()
+    let days_back = 1
+    while setup.file_name == '' && days_back < 10 "don't go back more than 10 days
+        let setup = s:SetupList.GetSetupForDate(strftime("%Y-%m-%d", localtime() - 24*60*60*days_back))
+        let days_back = days_back + 1
+    endwhile
     let filtered_setup = setup.Filter('v:val.is_complete == 0')
     let split_items = split(filtered_setup.Print(1), "\n")
     if len(split_items) > 0
