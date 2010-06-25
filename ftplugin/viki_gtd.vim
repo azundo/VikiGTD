@@ -453,11 +453,16 @@ function! s:ItemList.ParseItem(lines, parent, starting_line) dict "{{{3
     if a:lines != []
         let new_item = self.item_class.init()
         call new_item.ParseLines(a:lines, a:starting_line)
-        let new_item.project_name = self.project_name
+        if new_item.project_name == '' && self.project_name != ''
+            let new_item.project_name = self.project_name
+        endif
         call add(self.items, new_item)
         let new_item.parent = a:parent
         if has_key(a:parent, 'children')
             call add(a:parent['children'], new_item)
+        endif
+        if has_key(a:parent, 'project_name') && a:parent.project_name != '' && new_item.project_name == ''
+            let new_item.project_name = a:parent.project_name
         endif
         return new_item
     else
