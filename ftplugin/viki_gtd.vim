@@ -420,6 +420,10 @@ function! s:Item.GetItemTreeOnLine(...) dict " {{{3
     return item_list.items[0]
 endfunction
 
+function! s:Item.GetOldestAncestor() dict " {{{3
+    return empty(self.parent) ? self : self.parent.GetOldestAncestor()
+endfunction
+
 
 " Class: ItemList {{{2
 
@@ -627,11 +631,7 @@ function! s:ItemList.Print(...) dict "{{{3
     if a:0 > 0 " we'll print the parents
         let temp = []
         for t in self.items
-            if t.parent == {}
-                call add(temp, t)
-            else
-                call add(temp, t.parent)
-            endif
+            call add(temp, t.GetOldestAncestor())
         endfor
         let temp = s:Utils.RemoveDuplicates(temp)
         for t in temp
