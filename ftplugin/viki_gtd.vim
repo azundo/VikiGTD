@@ -87,6 +87,7 @@ endfunction
 " Class: Project {{{2
 "
 let s:Project = {}
+let s:Project.list_types = {}
 
 function! s:Project.init(name, ...) dict "{{{3
     TVarArg ['project_directory', g:vikiGtdProjectsDir]
@@ -94,11 +95,19 @@ function! s:Project.init(name, ...) dict "{{{3
     let instance.name = a:name
     let instance.project_directory = project_directory
     let instance.index_file = instance.GetOwnIndexFile()
-    let instance.todo_list = {}
-    let instance.waiting_for_list = {}
+    call instance.AddLists()
     return instance
 endfunction
 
+function! s:Project.RegisterList(l) dict " {{{3
+    let self.list_types[a:l.list_type] = a:l
+endfunction
+
+function! s:Project.AddLists() dict " {{{3
+    for list_type in keys(self.list_types)
+        let self[list_type] = {}
+    endfor
+endfunction
 function! s:Project.GetAllIndexFiles(...) dict "{{{3
     TVarArg ['directory', g:vikiGtdProjectsDir]
     let index_files = split(globpath(directory, '**/Index.viki'), '\n')
@@ -176,15 +185,12 @@ endfunction
 function! s:Project.Scrape() dict " {{{3
     let file_lines = readfile(self.index_file)
 
-    let project_todo = s:TodoList.init()
-    let project_todo.project_name = self.name
-    call project_todo.ParseLines(file_lines)
-    let self.todo_list = project_todo
-
-    let project_waiting_for = s:WaitingForList.init()
-    let project_waiting_for.project_name = self.name
-    call project_waiting_for.ParseLines(file_lines)
-    let self.waiting_for_list = project_waiting_for
+    for list_type in keys(self.list_types)
+        let item_list = self.list_types[list_type].init()
+        let item_list.project_name = self.name
+        call item_list.ParseLines(file_lines)
+        let self[list_type] = item_list
+    endfor
 endfunction
 
 function! s:Project.GetProjectsToReview(freq, ...) "{{{3
@@ -428,6 +434,8 @@ endfunction
 " Class: ItemList {{{2
 
 let s:ItemList = {}
+let s:ItemList.list_type = 'item_list'
+let s:ItemList.subclasses = []
 
 function! s:ItemList.init() dict "{{{3
     let instance = copy(self)
@@ -563,12 +571,8 @@ function! s:ItemList.ParseItemLines(lines, ...) dict " {{{3
 endfunction
 
 
-function! s:ItemList.GetListForLine(line_no, ...) " {{{3
-    TVarArg ['lines', getline(1, '$')], ['file_name', expand("%:p")]
-    if a:0 == 0
-        let a:line_no = a:line_no - 1 " adjust to be zero based
-    endif
-    let current_line = a:line_no
+function! s:ItemList.GetListForLine(...) " {{{3
+    TVarArg ['current_line', line('.') - 1], ['lines', getline(1, '$')]
     while current_line >= 0
         if match(lines[current_line], self.start_pattern) != -1
             return self.ParseLines(lines[current_line :], current_line)
@@ -684,6 +688,20 @@ function! s:ItemList.AddItem(item, ...) dict " {{{3
     endif
     return exe_txt
 endfunction
+
+function! s:ItemList.GetListTypeOnLine(...) dict " {{{3
+    TVarArg ['current_line_no', line('.') - 1], ['lines', getline(0, '$')]
+    while current_line_no >= 0 && match(lines[current_line_no], '^\S') == -1
+        let current_line_no = current_line_no - 1
+    endwhile
+    let sc_instances = map(copy(self.subclasses), 'v:val.init()')
+    for sc in sc_instances
+        if match(lines[current_line_no], sc.start_pattern ) != -1
+            return sc.list_type
+        endif
+    endfor
+    return ''
+endfunction
 " Class: Todo {{{2
 let s:Todo = copy(s:Item)
 
@@ -696,6 +714,9 @@ endfunction
 
 " Class: TodoList {{{2
 let s:TodoList = copy(s:ItemList)
+let s:TodoList.list_type = 'todo_list'
+call s:Project.RegisterList(s:TodoList)
+call add(s:ItemList.subclasses, s:TodoList)
 
 function! s:TodoList.init() dict "{{{3
     let instance = s:ItemList.init()
@@ -710,6 +731,10 @@ endfunction
 
 " Class: WaitingForList {{{2
 let s:WaitingForList = copy(s:ItemList)
+let s:WaitingForList.list_type = 'waiting_for_list'
+call s:Project.RegisterList(s:WaitingForList)
+call add(s:ItemList.subclasses, s:WaitingForList)
+
 function! s:WaitingForList.init() dict "{{{3
     let instance = s:ItemList.init()
     call extend(instance, copy(s:WaitingForList), "force")
@@ -719,6 +744,8 @@ endfunction
 
 " Class: SetupList {{{2
 let s:SetupList = copy(s:ItemList)
+let s:SetupList.list_type = 'todo_list' " TODO since SetupList equates to TodoList - maybe should rename
+call add(s:ItemList.subclasses, s:SetupList)
 function! s:SetupList.init() dict "{{{3
     let instance = s:ItemList.init()
     call extend(instance, copy(s:SetupList), "force")
@@ -797,46 +824,51 @@ function! s:OpenItemsInSp(item_type, filter) "{{{2
     return ':' . join(commands, ' | ')
 endfunction
 
-
-
-function! s:MarkTodoUnderCursorComplete() "{{{2
-    let current_todo = s:Todo.GetItemOnLine()
-    if current_todo.is_complete == 1
-        echo "Todo is already marked complete."
+function! s:MarkItemUnderCursorComplete() "{{{2
+    let current_item = s:Item.GetItemOnLine()
+    if current_item.is_complete == 1
+        echo "Item is already marked complete."
         return
     endif
-    if current_todo.starting_line != -1
-        call setline(current_todo.starting_line + 1, substitute(getline(current_todo.starting_line + 1), '^\(\s*\)@', '\1-', ''))
+    if current_item.starting_line != -1
+        call setline(current_item.starting_line + 1, substitute(getline(current_item.starting_line + 1), '^\(\s*\)@', '\1-', ''))
         exe "w"
+    else
+        return
     endif
-    if current_todo.project_name == ""
-        let toplevel_todo = s:Todo.GetTopLevelItemForLine()
-        let current_todo.project_name = toplevel_todo.project_name
+    let list_type = s:ItemList.GetListTypeOnLine()
+    if current_item.project_name == ""
+        let toplevel_item = s:Item.GetTopLevelItemForLine()
+        let current_item.project_name = toplevel_item.project_name
     endif
-    if current_todo.project_name != ""
+    if current_item.project_name != "" && list_type != ""
         try
-            let proj = s:Project.init(current_todo.project_name)
+            let proj = s:Project.init(current_item.project_name)
             call proj.Scrape()
-            let project_todo_list = proj.todo_list
-            let todo_found = 0
-            for todo in project_todo_list.items
-                if todo.text == current_todo.text
-                    let todo_found = 1
-                    let deleted = todo.Delete()
-                    if deleted == 0
-                        let c = confirm("Todo could not be deleted from project file. Still mark as completed?", "&Yes\n&No")
-                        if c == 2
-                            return
+            if has_key(proj, list_type)
+                let project_list = proj[list_type]
+                let item_found = 0
+                for item in project_list.items
+                    if item.Equals(current_item)
+                        let item_found = 1
+                        let deleted = item.Delete()
+                        if deleted == 0
+                            let c = confirm("Item could not be deleted from project file. Still mark as completed?", "&Yes\n&No")
+                            if c == 2
+                                call setline(current_item.starting_line + 1, substitute(getline(current_item.starting_line + 1), '^\(\s*\)-', '\1@', ''))
+                                exe "w"
+                                return
+                            endif
                         endif
+                        break
                     endif
-                    break
+                endfor
+                if item_found == 0
+                    echo 'Could not find item in project ' . current_item.project_name '.'
                 endif
-            endfor
-            if todo_found == 0
-                echo 'Could not find todo in project ' . current_todo.project_name '.'
             endif
         catch /vikiGTDError/
-            echo 'Could not find project ' . current_todo.project_name . '. Not removing any todo item.'
+            echo 'Could not find project ' . current_item.project_name . '. Not removing any item.'
         endtry
     endif
 endfunction
@@ -947,10 +979,6 @@ for date_range in s:date_ranges
 endfor
 
 
-if !exists(":MarkTodoUnderCursorComplete")
-    command MarkTodoUnderCursorComplete :call s:MarkTodoUnderCursorComplete()
-endif
-
 if !exists(":ProjectReviewDaily")
     exe "command! ProjectReviewDaily " . s:ReviewProjects("d")
 endif
@@ -980,11 +1008,12 @@ if !exists(":SearchVikiGTD")
 endif
 
 " Mappings {{{2
+
 if !hasmapto('<Plug>VikiGTDMarkComplete')
     map <buffer> <unique> <LocalLeader>mc <Plug>VikiGTDMarkComplete
 endif
 noremap <buffer> <script> <unique> <Plug>VikiGTDMarkComplete <SID>MarkComplete
-noremap <SID>MarkComplete :call <SID>MarkTodoUnderCursorComplete()<CR>
+noremap <SID>MarkComplete :call <SID>MarkItemUnderCursorComplete()<CR>
 
 if !hasmapto('<Plug>VikiGTDGoToProject')
     map <buffer> <unique> <LocalLeader>gp <Plug>VikiGTDGoToProject
@@ -1391,6 +1420,7 @@ if exists('UnitTest')
     call FunctionRegister.AddObject(s:Utils, 'Utils')
     call FunctionRegister.AddObject(s:Todo, 'Todo')
     call FunctionRegister.AddObject(s:TodoList, 'Todolist')
+    call FunctionRegister.AddObject(s:Project, 'Project')
 endif
 
 " resetting cpo option
