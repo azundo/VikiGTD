@@ -44,5 +44,4 @@ def search_database(query_string, database):
     q = qp.parse_query(query_string)
     enquire.set_query(q)
     results = enquire.get_mset(0, 10)
-    results_text = '\n'.join(['%d: %i%% %s' % (r.rank + 1, r.percent, r.document.get_value(0)) for r in results])
-    return results_text
+    return results

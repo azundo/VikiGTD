@@ -928,18 +928,103 @@ function! s:AddCursorItemToSetup() " {{{2
     return setup.AddItem(current_item, 0)
 endfunction
 
+function! s:CreateSearchWin(size) " {{{2 Inspired by NERDTree
+
+    if !exists('t:VikiSearchBufName')
+        let t:VikiSearchBufName = s:GetNextSearchBuffer()
+        silent! exec "botright " . a:size . ' new'
+        silent! exec "edit " . t:VikiSearchBufName
+    else
+        silent! exec "botright " . a:size . ' split'
+        silent! exec "buffer " . t:VikiSearchBufName
+    endif
+
+    setlocal winfixheight
+
+    "throwaway buffer options
+    setlocal noswapfile
+    setlocal buftype=nofile
+    setlocal nowrap
+    setlocal foldcolumn=0
+    setlocal nobuflisted
+    setlocal nospell
+
+    iabc <buffer>
+
+    setlocal cursorline
+    map <buffer> <CR> <Plug>VikiGTDGotoSearchResult
+    map <buffer> o <Plug>VikiGTDGotoSearchResult
+    map <buffer> <script> <Plug>VikiGTDGotoSearchResult <SID>GotoSearchResult
+    map <SID>GotoSearchResult :exe <SID>GotoSearchResult()<CR>
+    map <buffer> q :q<CR>
+endfunction
+
+function! s:GotoSearchResult()
+    let results_line = getline('.')
+    let f = matchstr(results_line, '\S\+$')
+    if filereadable(f)
+        let uw = s:FirstUsableWindow()
+        if uw != -1
+            return uw . 'wincmd w | e ' . f
+        else
+            return "wincmd k | rightb vsp " . f
+endfunction
+
+
+let s:SearchBufferNr = 0
+function! s:GetNextSearchBuffer() " {{{2
+    let result = 'VikiGTDSearchBuf' . s:SearchBufferNr
+    let s:SearchBufferNr = s:SearchBufferNr + 1
+    return result
+endfunction
+
+"FUNCTION: s:firstUsableWindow(){{{2 Stolen from NERDTree
+"find the window number of the first normal window
+function! s:FirstUsableWindow()
+    let i = 1
+    while i <= winnr("$")
+        let bnum = winbufnr(i)
+        if bnum != -1 && getbufvar(bnum, '&buftype') ==# ''
+                    \ && !getwinvar(i, '&previewwindow')
+                    \ && (!getbufvar(bnum, '&modified') || &hidden)
+            echo 'first usable is ' . i
+            return i
+        endif
+
+        let i += 1
+    endwhile
+    return -1
+endfunction
+
 function! s:SearchVikiGTD(...) " {{{2
+    if a:0 == 0
+        echo "Please provide search terms"
+        return
+    endif
+    if has("python")
+        let current_buf = bufnr("")
 python << EOF
+try:
+    import xapian
+except:
+    print "Xapian is not installed."
 import sys
-import xapian
 import vim
 sys.path.insert(0, '/home/benjamin/.vim/py')
 from viki_search import search_database
 db_loc = vim.eval('g:vikiGtdDB')
 db = xapian.Database(db_loc)
 results = search_database(" ".join(vim.eval("a:000")), db)
-print results
+results_text = ['%d: %i%% %s' % (r.rank + 1, r.percent, r.document.get_value(0)) for r in results]
+vim.command("call s:CreateSearchWin(10)")
+vim.current.buffer.append(results_text)
+vim.command("normal ggdd")
+
+# print results
 EOF
+    else
+        echo "Python and Xapian must be installed for search."
+    endif
 endfunction
 
 " Public Functions {{{1
