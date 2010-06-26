@@ -870,48 +870,6 @@ function! s:MarkItemUnderCursorComplete() "{{{2
     endif
 endfunction
 
-function! s:MarkTodoUnderCursorComplete() "{{{2
-    let current_todo = s:Todo.GetItemOnLine()
-    if current_todo.is_complete == 1
-        echo "Todo is already marked complete."
-        return
-    endif
-    if current_todo.starting_line != -1
-        call setline(current_todo.starting_line + 1, substitute(getline(current_todo.starting_line + 1), '^\(\s*\)@', '\1-', ''))
-        exe "w"
-    endif
-    if current_todo.project_name == ""
-        let toplevel_todo = s:Todo.GetTopLevelItemForLine()
-        let current_todo.project_name = toplevel_todo.project_name
-    endif
-    if current_todo.project_name != ""
-        try
-            let proj = s:Project.init(current_todo.project_name)
-            call proj.Scrape()
-            let project_todo_list = proj.todo_list
-            let todo_found = 0
-            for todo in project_todo_list.items
-                if todo.text == current_todo.text
-                    let todo_found = 1
-                    let deleted = todo.Delete()
-                    if deleted == 0
-                        let c = confirm("Todo could not be deleted from project file. Still mark as completed?", "&Yes\n&No")
-                        if c == 2
-                            return
-                        endif
-                    endif
-                    break
-                endif
-            endfor
-            if todo_found == 0
-                echo 'Could not find todo in project ' . current_todo.project_name '.'
-            endif
-        catch /vikiGTDError/
-            echo 'Could not find project ' . current_todo.project_name . '. Not removing any todo item.'
-        endtry
-    endif
-endfunction
-
 function! s:GoToProject(project_name) "{{{2
     try
         let project_index = s:Project.GetIndexFile(a:project_name)
@@ -1004,10 +962,6 @@ for date_range in s:date_ranges
 endfor
 
 
-if !exists(":MarkTodoUnderCursorComplete")
-    command MarkTodoUnderCursorComplete :call s:MarkTodoUnderCursorComplete()
-endif
-
 if !exists(":ProjectReviewDaily")
     exe "command! ProjectReviewDaily " . s:ReviewProjects("d")
 endif
@@ -1033,11 +987,6 @@ if !exists(":CopyUndoneTodos")
 endif
 
 " Mappings {{{2
-if !hasmapto('<Plug>VikiGTDMarkTodoComplete')
-    map <buffer> <unique> <LocalLeader>mtc <Plug>VikiGTDMarkTodoComplete
-endif
-noremap <buffer> <script> <unique> <Plug>VikiGTDMarkTodoComplete <SID>MarkTodoComplete
-noremap <SID>MarkTodoComplete :call <SID>MarkTodoUnderCursorComplete()<CR>
 
 if !hasmapto('<Plug>VikiGTDMarkComplete')
     map <buffer> <unique> <LocalLeader>mc <Plug>VikiGTDMarkComplete
