@@ -1382,6 +1382,7 @@ if exists('UnitTest')
     call FunctionRegister.AddObject(s:Utils, 'Utils')
     call FunctionRegister.AddObject(s:Todo, 'Todo')
     call FunctionRegister.AddObject(s:TodoList, 'Todolist')
+    call FunctionRegister.AddObject(s:Project, 'Project')
 endif
 
 " resetting cpo option
