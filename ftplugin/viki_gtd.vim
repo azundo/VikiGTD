@@ -568,12 +568,8 @@ function! s:ItemList.ParseItemLines(lines, ...) dict " {{{3
 endfunction
 
 
-function! s:ItemList.GetListForLine(line_no, ...) " {{{3
-    TVarArg ['lines', getline(1, '$')], ['file_name', expand("%:p")]
-    if a:0 == 0
-        let a:line_no = a:line_no - 1 " adjust to be zero based
-    endif
-    let current_line = a:line_no
+function! s:ItemList.GetListForLine(...) " {{{3
+    TVarArg ['current_line', line('.') - 1], ['lines', getline(1, '$')]
     while current_line >= 0
         if match(lines[current_line], self.start_pattern) != -1
             return self.ParseLines(lines[current_line :], current_line)
