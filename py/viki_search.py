@@ -1,22 +1,27 @@
 import os, sys
 import xapian
 
-def index_file(file_name, database):
+def index_file(name, database):
     indexer = xapian.TermGenerator()
     stemmer = xapian.Stem("english")
     indexer.set_stemmer(stemmer)
-    f = open(name)
-    content = ''
-    for line in f:
-        content += line.strip() + ' '
-    doc = xapian.Document()
-    doc.set_data(content)
-    doc.add_value(0, name)
-    indexer.set_document(doc)
-    indexer.index_text(content)
-    doc.add_term(name)
-    database.replace_document(name, doc)
-    f = None
+    if not os.path.isfile(name):
+        return
+    try:
+        f = open(name)
+        content = ''
+        for line in f:
+            content += line.strip() + ' '
+        doc = xapian.Document()
+        doc.set_data(content)
+        doc.add_value(0, name)
+        indexer.set_document(doc)
+        indexer.index_text(content)
+        doc.add_term(name)
+        database.replace_document(name, doc)
+        f = None
+    except:
+        pass
 
 def crawl_directory(directory):
     contents = [os.path.join(directory, item) 
@@ -28,9 +33,10 @@ def crawl_directory(directory):
             os.path.isfile(item)]
     for dir in dirs:
         files += crawl_directory(dir)
+    return files
 
 def index_directory(directory, database):
-    files = crawl_directory(index_directory)
+    files = crawl_directory(directory)
     for f in files:
         index_file(f, database)
 

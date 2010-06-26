@@ -18,11 +18,14 @@ set cpo&vim " set this to allow linecontinuations. cpo is reset at the end
 
 " Global var definitions {{{1
 "
+if !exists("g:vikiGtdHome")
+    let g:vikiGtdHome = $HOME.'/Wikis'
+endif
 if !exists("g:vikiGtdProjectsDir")
-    let g:vikiGtdProjectsDir = $HOME.'/Wikis/projects'
+    let g:vikiGtdProjectsDir = g:vikiGtdHome.'/projects'
 endif
 if !exists("g:vikiGtdHabitsDir")
-    let g:vikiGtdHabitsDir = $HOME.'/Wikis/habits'
+    let g:vikiGtdHabitsDir = g:vikiGtdHome.'/habits'
 endif
 if !exists("g:vikiGtdDB")
     let g:vikiGtdDB = $HOME.'/.vim/.vikiGtdDB'
@@ -968,6 +971,8 @@ function! s:GotoSearchResult()
             return uw . 'wincmd w | e ' . f
         else
             return "wincmd k | rightb vsp " . f
+        endif
+    endif
 endfunction
 
 
@@ -1002,7 +1007,6 @@ function! s:SearchVikiGTD(...) " {{{2
         return
     endif
     if has("python")
-        let current_buf = bufnr("")
 python << EOF
 try:
     import xapian
@@ -1013,17 +1017,76 @@ import vim
 sys.path.insert(0, '/home/benjamin/.vim/py')
 from viki_search import search_database
 db_loc = vim.eval('g:vikiGtdDB')
-db = xapian.Database(db_loc)
-results = search_database(" ".join(vim.eval("a:000")), db)
-results_text = ['%d: %i%% %s' % (r.rank + 1, r.percent, r.document.get_value(0)) for r in results]
-vim.command("call s:CreateSearchWin(10)")
-vim.current.buffer.append(results_text)
-vim.command("normal ggdd")
+try:
+    db = xapian.Database(db_loc)
+    results = search_database(" ".join(vim.eval("a:000")), db)
+    if len(results) == 0:
+        results_text = ["No results.",]
+    else:
+        results_text = ['%d: %i%% %s' % (r.rank + 1, r.percent, r.document.get_value(0)) for r in results]
+    vim.command("call s:CreateSearchWin(%d)" % len(results))
+    vim.current.buffer.append(results_text)
+    vim.command("normal ggdd")
+except:
+    pass
+db = None
 
 # print results
 EOF
     else
         echo "Python and Xapian must be installed for search."
+    endif
+endfunction
+
+function! s:IndexThisFile()
+    if !exists("b:vikiGtdNeedsIndexing")
+        return
+    endif
+    echo "indexing file"
+    if has("python")
+python << EOF
+try:
+    import xapian
+except:
+    print "Xapian is not installed."
+import sys
+import vim
+sys.path.insert(0, '/home/benjamin/.vim/py')
+from viki_search import index_file
+db_loc = vim.eval('g:vikiGtdDB')
+try:
+    db = xapian.WritableDatabase(db_loc, xapian.DB_CREATE_OR_OPEN)
+    index_file(vim.eval("expand('%:p')"), db)
+except:
+    pass
+db = None
+EOF
+    else
+        echo "Must have python and Xapian installed for search."
+    endif
+endfunction
+
+function! s:BuildSearchIndex() "{{{2
+    if has("python")
+python << EOF
+try:
+    import xapian
+except:
+    print "Xapian is not installed."
+import sys
+import vim
+sys.path.insert(0, '/home/benjamin/.vim/py')
+from viki_search import index_directory
+db_loc = vim.eval('g:vikiGtdDB')
+try:
+    db = xapian.WritableDatabase(db_loc, xapian.DB_CREATE_OR_OPEN)
+    index_directory(vim.eval("g:vikiGtdHome"), db)
+except:
+    pass
+db = None
+EOF
+    else
+        echo "Must have python and Xapian installed for search."
     endif
 endfunction
 
@@ -1039,6 +1102,13 @@ function! b:VikiGTDGetProjectNamesForAutocompletion(...) "{{{2
 endfunction
 
 " Commands Mappings and Highlight Groups {{{1
+"
+" Autocommands {{{2
+if !exists("g:vikiGtdAutoCommandsSet")
+    au BufUnload *.viki call <SID>IndexThisFile()
+    au BufWritePost *.viki let b:vikiGtdNeedsIndexing = 1
+    let g:vikiGtdAutoCommandsSet = 1
+endif
 "
 " Commands {{{2
 "
@@ -1090,6 +1160,10 @@ endif
 
 if !exists(":SearchVikiGTD")
     command -nargs=? SearchVikiGTD :call s:SearchVikiGTD(<f-args>)
+endif
+
+if !exists(":VikiGtdBuildSearchIndex")
+    command VikiGtdBuildSearchIndex :call s:BuildSearchIndex()
 endif
 
 " Mappings {{{2
