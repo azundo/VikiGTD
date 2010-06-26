@@ -727,6 +727,7 @@ endfunction
 
 " Class: SetupList {{{2
 let s:SetupList = copy(s:ItemList)
+let s:SetupList.list_type = 'setup_list'
 call add(s:ItemList.subclasses, s:SetupList)
 function! s:SetupList.init() dict "{{{3
     let instance = s:ItemList.init()
