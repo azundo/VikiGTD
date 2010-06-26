@@ -84,6 +84,7 @@ endfunction
 " Class: Project {{{2
 "
 let s:Project = {}
+let s:Project.list_types = {}
 
 function! s:Project.init(name, ...) dict "{{{3
     TVarArg ['project_directory', g:vikiGtdProjectsDir]
@@ -91,11 +92,19 @@ function! s:Project.init(name, ...) dict "{{{3
     let instance.name = a:name
     let instance.project_directory = project_directory
     let instance.index_file = instance.GetOwnIndexFile()
-    let instance.todo_list = {}
-    let instance.waiting_for_list = {}
+    call instance.AddLists()
     return instance
 endfunction
 
+function! s:Project.RegisterList(l) dict " {{{3
+    let self.list_types[a:l.list_type] = a:l
+endfunction
+
+function! s:Project.AddLists() dict " {{{3
+    for list_type in keys(self.list_types)
+        let self[list_type] = {}
+    endfor
+endfunction
 function! s:Project.GetAllIndexFiles(...) dict "{{{3
     TVarArg ['directory', g:vikiGtdProjectsDir]
     let index_files = split(globpath(directory, '**/Index.viki'), '\n')
@@ -173,15 +182,12 @@ endfunction
 function! s:Project.Scrape() dict " {{{3
     let file_lines = readfile(self.index_file)
 
-    let project_todo = s:TodoList.init()
-    let project_todo.project_name = self.name
-    call project_todo.ParseLines(file_lines)
-    let self.todo_list = project_todo
-
-    let project_waiting_for = s:WaitingForList.init()
-    let project_waiting_for.project_name = self.name
-    call project_waiting_for.ParseLines(file_lines)
-    let self.waiting_for_list = project_waiting_for
+    for list_type in keys(self.list_types)
+        let item_list = self.list_types[list_type].init()
+        let item_list.project_name = self.name
+        call item_list.ParseLines(file_lines)
+        let self[list_type] = item_list
+    endfor
 endfunction
 
 function! s:Project.GetProjectsToReview(freq, ...) "{{{3
@@ -425,6 +431,7 @@ endfunction
 " Class: ItemList {{{2
 
 let s:ItemList = {}
+let s:ItemList.list_type = 'item_list'
 
 function! s:ItemList.init() dict "{{{3
     let instance = copy(self)
@@ -693,6 +700,8 @@ endfunction
 
 " Class: TodoList {{{2
 let s:TodoList = copy(s:ItemList)
+let s:TodoList.list_type = 'todo_list'
+call s:Project.RegisterList(s:TodoList)
 
 function! s:TodoList.init() dict "{{{3
     let instance = s:ItemList.init()
@@ -707,6 +716,9 @@ endfunction
 
 " Class: WaitingForList {{{2
 let s:WaitingForList = copy(s:ItemList)
+let s:WaitingForList.list_type = 'waiting_for_list'
+call s:Project.RegisterList(s:WaitingForList)
+
 function! s:WaitingForList.init() dict "{{{3
     let instance = s:ItemList.init()
     call extend(instance, copy(s:WaitingForList), "force")
