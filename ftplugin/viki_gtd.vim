@@ -685,6 +685,20 @@ function! s:ItemList.AddItem(item, ...) dict " {{{3
     endif
     return exe_txt
 endfunction
+
+function! s:ItemList.GetListTypeOnLine(...) dict " {{{3
+    TVarArg ['current_line_no', line('.') - 1], ['lines', getline(0, '$')]
+    while current_line_no >= 0 && match(lines[current_line_no], '^\S') == -1
+        let current_line_no = current_line_no - 1
+    endwhile
+    let sc_instances = map(copy(self.subclasses), 'v:val.init()')
+    for sc in sc_instances
+        if match(lines[current_line_no], sc.start_pattern ) != -1
+            return sc.list_type
+        endif
+    endfor
+    return ''
+endfunction
 " Class: Todo {{{2
 let s:Todo = copy(s:Item)
 
@@ -727,7 +741,7 @@ endfunction
 
 " Class: SetupList {{{2
 let s:SetupList = copy(s:ItemList)
-let s:SetupList.list_type = 'setup_list'
+let s:SetupList.list_type = 'todo_list' " TODO since SetupList equates to TodoList - maybe should rename
 call add(s:ItemList.subclasses, s:SetupList)
 function! s:SetupList.init() dict "{{{3
     let instance = s:ItemList.init()
@@ -807,7 +821,54 @@ function! s:OpenItemsInSp(item_type, filter) "{{{2
     return ':' . join(commands, ' | ')
 endfunction
 
-
+function! s:MarkItemUnderCursorComplete() "{{{2
+    let current_item = s:Item.GetItemOnLine()
+    if current_item.is_complete == 1
+        echo "Item is already marked complete."
+        return
+    endif
+    if current_item.starting_line != -1
+        call setline(current_item.starting_line + 1, substitute(getline(current_item.starting_line + 1), '^\(\s*\)@', '\1-', ''))
+        exe "w"
+    else
+        return
+    endif
+    let list_type = s:ItemList.GetListTypeOnLine()
+    if current_item.project_name == ""
+        let toplevel_item = s:Item.GetTopLevelItemForLine()
+        let current_item.project_name = toplevel_item.project_name
+    endif
+    if current_item.project_name != "" && list_type != ""
+        try
+            let proj = s:Project.init(current_item.project_name)
+            call proj.Scrape()
+            if has_key(proj, list_type)
+                let project_list = proj[list_type]
+                let item_found = 0
+                for item in project_list.items
+                    if item.Equals(current_item)
+                        let item_found = 1
+                        let deleted = item.Delete()
+                        if deleted == 0
+                            let c = confirm("Item could not be deleted from project file. Still mark as completed?", "&Yes\n&No")
+                            if c == 2
+                                call setline(current_item.starting_line + 1, substitute(getline(current_item.starting_line + 1), '^\(\s*\)-', '\1@', ''))
+                                exe "w"
+                                return
+                            endif
+                        endif
+                        break
+                    endif
+                endfor
+                if item_found == 0
+                    echo 'Could not find item in project ' . current_item.project_name '.'
+                endif
+            endif
+        catch /vikiGTDError/
+            echo 'Could not find project ' . current_item.project_name . '. Not removing any item.'
+        endtry
+    endif
+endfunction
 
 function! s:MarkTodoUnderCursorComplete() "{{{2
     let current_todo = s:Todo.GetItemOnLine()
@@ -972,11 +1033,17 @@ if !exists(":CopyUndoneTodos")
 endif
 
 " Mappings {{{2
+if !hasmapto('<Plug>VikiGTDMarkTodoComplete')
+    map <buffer> <unique> <LocalLeader>mtc <Plug>VikiGTDMarkTodoComplete
+endif
+noremap <buffer> <script> <unique> <Plug>VikiGTDMarkTodoComplete <SID>MarkTodoComplete
+noremap <SID>MarkTodoComplete :call <SID>MarkTodoUnderCursorComplete()<CR>
+
 if !hasmapto('<Plug>VikiGTDMarkComplete')
     map <buffer> <unique> <LocalLeader>mc <Plug>VikiGTDMarkComplete
 endif
 noremap <buffer> <script> <unique> <Plug>VikiGTDMarkComplete <SID>MarkComplete
-noremap <SID>MarkComplete :call <SID>MarkTodoUnderCursorComplete()<CR>
+noremap <SID>MarkComplete :call <SID>MarkItemUnderCursorComplete()<CR>
 
 if !hasmapto('<Plug>VikiGTDGoToProject')
     map <buffer> <unique> <LocalLeader>gp <Plug>VikiGTDGoToProject
