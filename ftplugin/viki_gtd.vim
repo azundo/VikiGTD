@@ -432,6 +432,7 @@ endfunction
 
 let s:ItemList = {}
 let s:ItemList.list_type = 'item_list'
+let s:ItemList.subclasses = []
 
 function! s:ItemList.init() dict "{{{3
     let instance = copy(self)
@@ -702,6 +703,7 @@ endfunction
 let s:TodoList = copy(s:ItemList)
 let s:TodoList.list_type = 'todo_list'
 call s:Project.RegisterList(s:TodoList)
+call add(s:ItemList.subclasses, s:TodoList)
 
 function! s:TodoList.init() dict "{{{3
     let instance = s:ItemList.init()
@@ -718,6 +720,7 @@ endfunction
 let s:WaitingForList = copy(s:ItemList)
 let s:WaitingForList.list_type = 'waiting_for_list'
 call s:Project.RegisterList(s:WaitingForList)
+call add(s:ItemList.subclasses, s:WaitingForList)
 
 function! s:WaitingForList.init() dict "{{{3
     let instance = s:ItemList.init()
@@ -728,6 +731,7 @@ endfunction
 
 " Class: SetupList {{{2
 let s:SetupList = copy(s:ItemList)
+call add(s:ItemList.subclasses, s:SetupList)
 function! s:SetupList.init() dict "{{{3
     let instance = s:ItemList.init()
     call extend(instance, copy(s:SetupList), "force")
