@@ -876,9 +876,13 @@ function! s:MarkItemUnderCursorComplete() "{{{2
     endif
 endfunction
 
-function! s:GoToProject(project_name) "{{{2
+function! s:GoToProject() "{{{2
+    let toplevel_item = s:Item.GetTopLevelItemForLine()
+    if toplevel_item.project_name == ''
+        return
+    endif
     try
-        let project_index = s:Project.GetIndexFile(a:project_name)
+        let project_index = s:Project.GetIndexFile(toplevel_item.project_name)
         return 'rightb vsp ' . fnameescape(project_index)
     catch /vikiGTDError/
         return 'echo "' . substitute(v:exception, 'vikiGTDError: ', '', '') . '"'
@@ -1178,7 +1182,7 @@ if !hasmapto('<Plug>VikiGTDGoToProject')
     map <buffer> <unique> <LocalLeader>gp <Plug>VikiGTDGoToProject
 endif
 noremap <buffer> <script> <unique> <Plug>VikiGTDGoToProject <SID>GoToProject
-noremap <SID>GoToProject  :<C-R>=<SID>GoToProject(expand("<cword>"))<CR><CR>
+noremap <SID>GoToProject  :<C-R>=<SID>GoToProject()<CR><CR>
 
 if !hasmapto('<Plug>VikiGTDAddCursorItemToSetup')
     map <buffer> <unique> <LocalLeader>as <Plug>VikiGTDAddCursorItemToSetup
