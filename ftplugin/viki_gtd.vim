@@ -94,7 +94,7 @@ let s:Project.list_types = {}
 
 function! s:Project.init(name, ...) dict "{{{3
     TVarArg ['project_directory', g:vikiGtdProjectsDir]
-    let instance = copy(self)
+    let instance = copy(s:Project)
     let instance.name = a:name
     let instance.project_directory = project_directory
     let instance.index_file = instance.GetOwnIndexFile()
@@ -225,7 +225,7 @@ endfunction
 "
 let s:Item = {}
 function! s:Item.init() dict "{{{3
-    let instance = copy(self)
+    let instance = copy(s:Item)
     let instance.text = ""
     let instance.date = ""
     let instance.project_name = ""
@@ -441,7 +441,7 @@ let s:ItemList.list_type = 'item_list'
 let s:ItemList.subclasses = []
 
 function! s:ItemList.init() dict "{{{3
-    let instance = copy(self)
+    let instance = copy(s:ItemList)
     let instance.items = []
     let instance.project_name = ""
     let instance.item_class = s:Item
