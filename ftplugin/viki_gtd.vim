@@ -927,7 +927,9 @@ endfunction
 
 function! s:AddCursorItemToSetup() " {{{2
     let current_item = s:Item.GetItemTreeOnLine()
-    let current_item.project_name = s:Project.GetNameFromIndexFile()
+    if current_item.project_name == ''
+        let current_item.project_name = s:Project.GetNameFromIndexFile()
+    endif
     let setup = s:SetupList.GetSetupForDate()
     if setup.starting_line == -1
         return "echo 'No setup for today yet!'"
