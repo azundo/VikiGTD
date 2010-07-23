@@ -1019,9 +1019,11 @@ except:
 import sys
 import vim
 sys.path.insert(0, '/home/benjamin/.vim/py')
-from viki_search import search_database
+
+
 db_loc = vim.eval('g:vikiGtdDB')
 try:
+    from viki_search import search_database
     db = xapian.Database(db_loc)
     results = search_database(" ".join(vim.eval("a:000")), db)
     if len(results) == 0:
@@ -1031,8 +1033,8 @@ try:
     vim.command("call s:CreateSearchWin(%d)" % len(results))
     vim.current.buffer.append(results_text)
     vim.command("normal ggdd")
-except:
-    pass
+except Exception, e:
+    print 'Could not search: Exception is', e
 db = None
 
 # print results
@@ -1056,13 +1058,13 @@ except:
 import sys
 import vim
 sys.path.insert(0, '/home/benjamin/.vim/py')
-from viki_search import index_file
 db_loc = vim.eval('g:vikiGtdDB')
 try:
+    from viki_search import index_file
     db = xapian.WritableDatabase(db_loc, xapian.DB_CREATE_OR_OPEN)
     index_file(vim.eval("expand('%:p')"), db)
-except:
-    pass
+except Exception, e:
+    print 'Could not index file: Exception is', e
 db = None
 EOF
     else
@@ -1080,13 +1082,14 @@ except:
 import sys
 import vim
 sys.path.insert(0, '/home/benjamin/.vim/py')
-from viki_search import index_directory
 db_loc = vim.eval('g:vikiGtdDB')
 try:
+    from viki_search import index_directory
     db = xapian.WritableDatabase(db_loc, xapian.DB_CREATE_OR_OPEN)
     index_directory(vim.eval("g:vikiGtdHome"), db)
-except:
-    pass
+except Exception, e:
+    print 'Could not build index: Exception is', e
+
 db = None
 EOF
     else
