@@ -16,8 +16,13 @@ function! s:GetProjectsIndexes(...)
     let standalone_projects = split(globpath(directory, '*.viki'), '\n')
     " Add the files together
     let index_files = extend(index_files, standalone_projects)
+    " replace forward slashes on windows
+    if has("win32") || has("win64")
+        let sub_func = 'substitute(v:val, "\\\\", "/", "g")'
+        let index_files = map(index_files, sub_func)
+    endif
     " remove the projects/Index.viki
-    call filter(index_files, 'v:val != "' . directory . '/Index.viki"')
+    call filter(index_files, 'v:val != "' . substitute(directory, "\\\\", "/", "g") . '/Index.viki"')
     return index_files
 endfunction
 
