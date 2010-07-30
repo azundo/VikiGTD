@@ -629,6 +629,8 @@ function! s:ItemList.FilterByNaturalLanguageDate(filter) dict "{{{3
         let filtered_list = self.FilterByDate(this_week_sunday, next_week_sunday)
     elseif a:filter == 'All'
         let filtered_list = self.FilterByDate("0000-00-00", "9999-99-99")
+    elseif a:filter == 'Undated'
+        let filtered_list = self.Filter('v:val.date == ""')
     elseif a:filter == ''
         " get overdue up to tomorrow if filter is blank
         let filtered_list = self.FilterByDate("0000-00-00", tomorrow)
@@ -1127,7 +1129,7 @@ endif
 "
 " Commands {{{2
 "
-let s:date_ranges = ['', 'Today', 'Tomorrow', 'ThisWeek', 'TodayAndTomorrow', 'Overdue', 'All']
+let s:date_ranges = ['', 'Today', 'Tomorrow', 'ThisWeek', 'TodayAndTomorrow', 'Overdue', 'All', 'Undated']
 for date_range in s:date_ranges
 
     if !exists(":Todos" . date_range)
