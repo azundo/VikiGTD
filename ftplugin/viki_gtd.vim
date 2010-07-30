@@ -674,8 +674,11 @@ function! s:ItemList.AddItem(item, ...) dict " {{{3
         let exe_txt = 'echo "No file name for that item list found."'
     elseif self.ending_line == -1
         let exe_txt = 'echo "No ending line set for this item list - cannot add an item."'
+    " checks for an existing swap file
     elseif filereadable(substitute(self.file_name, '\(\w\+\.viki\)$', '\.\1\.swp', ''))
         let bufname = matchstr(self.file_name, '\w\+\(Index\)\?.viki$')
+        " use bufnr to check if the file is opened in this instance of vim. If
+        " so, no problem. If not, we can't edit it
         if bufname == '' || bufnr(bufname) == -1
             let exe_txt = 'echo "Project file for ' . self.project_name . ' is open - cannot modify."'
         endif
