@@ -592,13 +592,13 @@ function! s:ItemList.GetListForLine(...) " {{{3
 endfunction
 
 function! s:ItemList.Filter(filter_function) dict " {{{3
-    let filtered_list = copy(self.items)
-    call filter(filtered_list, a:filter_function)
-    for item in filtered_list
+    let filtered_items = copy(self.items)
+    call filter(filtered_items, a:filter_function)
+    for item in filtered_items
         call filter(item.children, a:filter_function)
     endfor
     let new_list = self.init()
-    let new_list.items = filtered_list
+    let new_list.items = filtered_items
     return new_list
 endfunction
 
@@ -618,24 +618,24 @@ function! s:ItemList.FilterByNaturalLanguageDate(filter) dict "{{{3
     let next_week_sunday = strftime("%Y-%m-%d", s:Utils.GetSundayForWeek(localtime() + 7*24*60*60))
     let yesterday = strftime("%Y-%m-%d", localtime() - 24*60*60)
     if a:filter == 'Today'
-        let filtered_items = self.FilterByDate(today, today)
+        let filtered_list = self.FilterByDate(today, today)
     elseif a:filter == 'TodayAndTomorrow'
-        let filtered_items = self.FilterByDate(today, tomorrow)
+        let filtered_list = self.FilterByDate(today, tomorrow)
     elseif a:filter == 'Tomorrow'
-        let filtered_items = self.FilterByDate(tomorrow, tomorrow)
+        let filtered_list = self.FilterByDate(tomorrow, tomorrow)
     elseif a:filter == 'Overdue'
-        let filtered_items = self.FilterByDate("0000-00-00", yesterday)
+        let filtered_list = self.FilterByDate("0000-00-00", yesterday)
     elseif a:filter == 'ThisWeek'
-        let filtered_items = self.FilterByDate(this_week_sunday, next_week_sunday)
+        let filtered_list = self.FilterByDate(this_week_sunday, next_week_sunday)
     elseif a:filter == 'All'
-        let filtered_items = self.FilterByDate("0000-00-00", "9999-99-99")
+        let filtered_list = self.FilterByDate("0000-00-00", "9999-99-99")
     elseif a:filter == ''
         " get overdue up to tomorrow if filter is blank
-        let filtered_items = self.FilterByDate("0000-00-00", tomorrow)
+        let filtered_list = self.FilterByDate("0000-00-00", tomorrow)
     else
-        let filtered_items = self.FilterByDate("0000-00-00", "9999-99-99")
+        let filtered_list = self.FilterByDate("0000-00-00", "9999-99-99")
     endif
-    return filtered_items
+    return filtered_list
 endfunction
 
 
