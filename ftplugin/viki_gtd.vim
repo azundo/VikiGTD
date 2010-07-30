@@ -746,10 +746,24 @@ let s:WaitingForList.list_type = 'waiting_for_list'
 call s:Project.RegisterList(s:WaitingForList)
 call add(s:ItemList.subclasses, s:WaitingForList)
 
+
 function! s:WaitingForList.init() dict "{{{3
     let instance = s:ItemList.init()
     call extend(instance, copy(s:WaitingForList), "force")
     let instance.start_pattern = '^\*\*\s*Waiting'
+    return instance
+endfunction
+
+" Class: AppointmentList {{{2
+let s:AppointmentList = copy(s:ItemList)
+let s:AppointmentList.list_type = 'appointment_list'
+call s:Project.RegisterList(s:AppointmentList)
+call add(s:ItemList.subclasses, s:AppointmentList)
+
+function! s:AppointmentList.init() dict "{{{3
+    let instance = s:ItemList.init()
+    call extend(instance, copy(s:AppointmentList), "force")
+    let instance.start_pattern = '^\*\*\s*App'
     return instance
 endfunction
 
@@ -931,6 +945,18 @@ function! s:AddWaitingForCmd(project_name) " {{{2
     let wf = s:Item.init()
     let wf.text = wf_text
     return p.waiting_for_list.AddItem(wf, 0)
+endfunction
+
+function! s:AddAppointmentCmd(project_name) " {{{2
+    let app_text = input("Enter appointment text:\n")
+    if app_text == ''
+        return
+    endif
+    let p = s:Project.init(a:project_name)
+    call p.Scrape()
+    let app = s:Item.init()
+    let app.text = app_text
+    return p.appointment_list.AddItem(app, 0)
 endfunction
 
 function! s:AddCursorItemToSetup() " {{{2
@@ -1148,6 +1174,14 @@ for date_range in s:date_ranges
         exe "command Wfs" . date_range .  " " . s:OpenItemsInSp("Wfs", date_range)
     endif
 
+    if !exists(":Appointments" . date_range)
+        exe "command Appointments" . date_range .  " " . s:OpenItemsInSp("Appointments", date_range)
+    endif
+
+    if !exists(":PrintAppointments" . date_range)
+        exe "command PrintAppointments" . date_range . " :call s:PrintItems(\"appointment_list\", \"" . date_range . "\")"
+    endif
+
 endfor
 
 
@@ -1169,6 +1203,10 @@ endif
 
 if !exists(":AddWaitingFor")
     command -nargs=1 -complete=custom,b:VikiGTDGetProjectNamesForAutocompletion AddWaitingFor :exe s:AddWaitingForCmd(<f-args>)
+endif
+
+if !exists(":AddAppointment")
+    command -nargs=1 -complete=custom,b:VikiGTDGetProjectNamesForAutocompletion AddAppointment :exe s:AddAppointmentCmd(<f-args>)
 endif
 
 if !exists(":CopyUndoneTodos")
