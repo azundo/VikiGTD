@@ -693,6 +693,7 @@ function! s:ItemList.AddItem(item, ...) dict " {{{3
             \" exe \"normal Vgq\"",
             \"wq",
             \"tabn " . current_tab,
+            \"redraw",
             \"echo \"Added " . escape(a:item.text, '"') . " to " . self.file_name . ".\""
             \]
 
