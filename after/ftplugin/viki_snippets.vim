@@ -52,7 +52,8 @@ exec "Snippet day * ".st."date".et."
 \<CR><BS>@ Blog for half an hour
 \<CR>
 \<CR><BS>** Set up
-\<CR><TAB>@ ".st.et."
+\<CR>
+\<CR><BS>** Appointments
 \<CR>
 \<CR><BS>** Reflections/Notes"
 
@@ -65,7 +66,8 @@ exec "Snippet today * ".strftime("%Y-%m-%d")."
 \<CR><BS>@ Blog for half an hour
 \<CR>
 \<CR><BS>** Set up
-\<CR><TAB>@ ".st.et."
+\<CR>
+\<CR><BS>** Appointments
 \<CR>
 \<CR><BS>** Reflections/Notes"
 
