@@ -312,6 +312,8 @@ function! s:Item.ParseLines(lines, ...) dict "{{{3
         let self.project_name = project_match[1]
         let self.text = substitute(self.text, ' #\(\w\+\)$', '', '')
     endif
+    " remove pomodoro references
+    let self.text = substitute(self.text, '\s*[Xx]\+\s*$', '', '')
     let self.date = matchstr(self.text, '\d\{4\}-\d\{2\}-\d\{2\}')
     if a:0 > 0 && type(a:1) == type(0)
         let self.starting_line = a:1
