@@ -24,8 +24,8 @@ endif
 if !exists("g:vikiGtdProjectsDir")
     let g:vikiGtdProjectsDir = g:vikiGtdHome.'/projects'
 endif
-if !exists("g:vikiGtdHabitsDir")
-    let g:vikiGtdHabitsDir = g:vikiGtdHome.'/habits'
+if !exists("g:vikiGtdLogDir")
+    let g:vikiGtdLogDir = g:vikiGtdHome.'/log'
 endif
 if !exists("g:vikiGtdDB")
     let g:vikiGtdDB = $HOME.'/.vim/.vikiGtdDB'
@@ -787,7 +787,7 @@ endfunction
 function! s:SetupList.GetSetupForDate(...) dict "{{{3
     TVarArg ['date', strftime("%Y-%m-%d")]
     let setup = self.init()
-    let setup_file = g:vikiGtdHabitsDir . '/weeks/days/' . date . '.viki' 
+    let setup_file = g:vikiGtdLogDir . '/weeks/days/' . date . '.viki' 
     if filereadable(setup_file)
         call setup.ParseLines(readfile(setup_file), 0, setup_file)
     endif
