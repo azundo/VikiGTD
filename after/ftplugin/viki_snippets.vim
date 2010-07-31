@@ -51,11 +51,13 @@ exec "Snippet day * ".st."date".et."
 \<CR>@ Review Daily Projects
 \<CR><BS>@ Blog for half an hour
 \<CR>
-\<CR><BS>** Set up
-\<CR>
 \<CR><BS>** Appointments
 \<CR>
-\<CR><BS>** Reflections/Notes"
+\<CR>** Set up
+\<CR>
+\<CR>** Waiting For
+\<CR>
+\<CR>** Reflections/Notes"
 
 exec "Snippet today * ".strftime("%Y-%m-%d")."
 \<CR>** Daily Habits
@@ -65,11 +67,13 @@ exec "Snippet today * ".strftime("%Y-%m-%d")."
 \<CR>@ Review Daily Projects
 \<CR><BS>@ Blog for half an hour
 \<CR>
-\<CR><BS>** Set up
-\<CR>
 \<CR><BS>** Appointments
 \<CR>
-\<CR><BS>** Reflections/Notes"
+\<CR>** Set up
+\<CR>
+\<CR>** Waiting For
+\<CR>
+\<CR>** Reflections/Notes"
 
 exec "Snippet week * Week of ".st."date".et."
 \<CR>
