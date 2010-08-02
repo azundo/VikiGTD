@@ -79,7 +79,7 @@ exec "Snippet week * Week of ".st."date".et."
 \<CR>
 \<CR>** Weekly Habits
 \<CR><TAB>@ Beginning of Week Reflection
-\<CR>@ Review Weekly Projects
+\<CR>@ Review Weekly and Daily Projects
 \<CR>@ Mid Week Check-In
 \<CR>@ Blog Post
 \<CR>@ Exercise Quota
@@ -105,7 +105,7 @@ exec "Snippet thisweek * Week of ".s:GetDateForDayName("Sunday")."
 \<CR>
 \<CR>** Weekly Habits
 \<CR><TAB>@ Beginning of Week Reflection
-\<CR>@ Review Weekly Projects
+\<CR>@ Review Weekly and Daily Projects
 \<CR>@ Mid Week Check-In
 \<CR>@ Blog Post
 \<CR>@ Exercise Quota
