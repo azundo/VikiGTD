@@ -28,8 +28,21 @@ if !exists("g:vikiGtdLogDir")
     let g:vikiGtdLogDir = g:vikiGtdHome.'/log'
 endif
 if !exists("g:vikiGtdDB")
-    let g:vikiGtdDB = $HOME.'/.vim/.vikiGtdDB'
+    if has("win32") || has("win64")
+        let g:vikiGtdDB = $HOME.'/vimfiles/_vikiGtdDB'
+    else
+        let g:vikiGtdDB = $HOME.'/.vim/.vikiGtdDB'
+    endif
 endif
+
+if !exists("g:python_path")
+    if has("win32") || has("win64")
+        let g:python_path = ['C:\\Users\\Ben\\vimfiles\\py']
+    else
+        let g:python_path = ['/home/benjamin/.vim/py']
+    endif
+endif
+
 
 " Script var definitions {{{1
 "
@@ -1060,7 +1073,13 @@ except:
     print "Xapian is not installed."
 import sys
 import vim
-sys.path.insert(0, '/home/benjamin/.vim/py')
+try:
+    py_path_additions = vim.eval('g:python_path')
+    for addition in py_path_additions[::-1]:
+        if addition not in sys.path:
+            sys.path.insert(0, addition)
+except:
+    pass
 
 
 db_loc = vim.eval('g:vikiGtdDB')
@@ -1099,7 +1118,13 @@ except:
     print "Xapian is not installed."
 import sys
 import vim
-sys.path.insert(0, '/home/benjamin/.vim/py')
+try:
+    py_path_additions = vim.eval('g:python_path')
+    for addition in py_path_additions[::-1]:
+        if addition not in sys.path:
+            sys.path.insert(0, addition)
+except:
+    pass
 db_loc = vim.eval('g:vikiGtdDB')
 try:
     from viki_search import index_file
@@ -1123,7 +1148,13 @@ except:
     print "Xapian is not installed."
 import sys
 import vim
-sys.path.insert(0, '/home/benjamin/.vim/py')
+try:
+    py_path_additions = vim.eval('g:python_path')
+    for addition in py_path_additions[::-1]:
+        if addition not in sys.path:
+            sys.path.insert(0, addition)
+except:
+    pass
 db_loc = vim.eval('g:vikiGtdDB')
 try:
     from viki_search import index_directory
