@@ -35,6 +35,10 @@ if !exists("g:vikiGtdDB")
     endif
 endif
 
+if !exists("s:db_psh")
+    let s:db_psh = g:vikiGtdDB.'/modified_time.psh'
+endif
+
 if !exists("g:python_path")
     if has("win32") || has("win64")
         let g:python_path = ['C:\\Users\\Ben\\vimfiles\\py']
@@ -1129,7 +1133,7 @@ db_loc = vim.eval('g:vikiGtdDB')
 try:
     from viki_search import index_file
     db = xapian.WritableDatabase(db_loc, xapian.DB_CREATE_OR_OPEN)
-    index_file(vim.eval("expand('%:p')"), db)
+    index_file(vim.eval("expand('%:p')"), db, vim.eval('s:db_psh'))
 except Exception, e:
     print 'Could not index file: Exception is', e
 db = None
@@ -1159,9 +1163,40 @@ db_loc = vim.eval('g:vikiGtdDB')
 try:
     from viki_search import index_directory
     db = xapian.WritableDatabase(db_loc, xapian.DB_CREATE_OR_OPEN)
-    index_directory(vim.eval("g:vikiGtdHome"), db)
+    index_directory(vim.eval("g:vikiGtdHome"), db, vim.eval('s:db_psh'))
 except Exception, e:
     print 'Could not build index: Exception is', e
+
+db = None
+EOF
+    else
+        echo "Must have python and Xapian installed for search."
+    endif
+endfunction
+
+function! s:UpdateSearchIndex() "{{{2
+    if has("python")
+python << EOF
+try:
+    import xapian
+except:
+    print "Xapian is not installed."
+import sys, os
+import vim
+try:
+    py_path_additions = vim.eval('g:python_path')
+    for addition in py_path_additions[::-1]:
+        if addition not in sys.path:
+            sys.path.insert(0, addition)
+except:
+    pass
+db_loc = vim.eval('g:vikiGtdDB')
+try:
+    from viki_search import update_index
+    db = xapian.WritableDatabase(db_loc, xapian.DB_CREATE_OR_OPEN)
+    update_index(vim.eval("g:vikiGtdHome"), db, os.path.join(db_loc, vim.eval('s:db_psh')))
+except Exception, e:
+    print 'Could not update index: Exception is', e
 
 db = None
 EOF
@@ -1256,6 +1291,10 @@ endif
 
 if !exists(":VikiGtdBuildSearchIndex")
     command VikiGtdBuildSearchIndex :call s:BuildSearchIndex()
+endif
+
+if !exists(":VikiGtdUpdateSearchIndex")
+    command VikiGtdUpdateSearchIndex :call s:UpdateSearchIndex()
 endif
 
 " Mappings {{{2

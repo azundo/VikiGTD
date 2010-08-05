@@ -1,10 +1,13 @@
 import os, sys
+import shelve
 import xapian
 
-def index_file(name, database):
+
+def index_file(name, database, shelf):
     indexer = xapian.TermGenerator()
     stemmer = xapian.Stem("english")
     indexer.set_stemmer(stemmer)
+    d = shelve.open(shelf)
     if not os.path.isfile(name):
         return
     try:
@@ -19,9 +22,11 @@ def index_file(name, database):
         indexer.index_text(content)
         doc.add_term(name)
         database.replace_document(name, doc)
+        d[name] = os.path.getmtime(name)
         f = None
     except:
         pass
+    d.close()
 
 def crawl_directory(directory):
     contents = [os.path.join(directory, item) 
@@ -35,10 +40,19 @@ def crawl_directory(directory):
         files += crawl_directory(dir)
     return files
 
-def index_directory(directory, database):
+def index_directory(directory, database, shelf):
     files = crawl_directory(directory)
     for f in files:
-        index_file(f, database)
+        index_file(f, database, shelf)
+
+def update_index(directory, database, shelf):
+    files = crawl_directory(directory)
+    d = shelve.open(shelf)
+    files_to_index = [f for f in files if d.get(f, None) != os.path.getmtime(f)]
+    d.close()
+    for f in files_to_index:
+        print 'Updating %s in index.' % f
+        index_file(f, database, shelf)
 
 def search_database(query_string, database):
     enquire = xapian.Enquire(database)
