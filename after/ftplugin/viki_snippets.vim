@@ -140,3 +140,6 @@ exec "Snippet month * ".st."date".et."
 \<CR>@ Week 4: 
 \<CR>@ (Week 5:) "
 
+" id stands for insert date - insert the current date formatted in the proper
+" style. Nice when you want to add a date timestamp to new files.
+exec "Snippet id ".strftime("%Y-%m-%d").st.et
