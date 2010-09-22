@@ -143,3 +143,19 @@ exec "Snippet month * ".st."date".et."
 " id stands for insert date - insert the current date formatted in the proper
 " style. Nice when you want to add a date timestamp to new files.
 exec "Snippet id ".strftime("%Y-%m-%d").st.et
+
+exec "Snippet project * ".st."name".et."
+\<CR>
+\<CR>** Objective and Description
+\<CR>
+\<CR>** ToDos
+\<CR>
+\<CR>** Waiting For
+\<CR>
+\<CR>** Appointments
+\<CR>
+\<CR>** Project Notes
+\<CR>
+\<CR>** Stopping Criteria
+\<CR>
+\<CR>% vikiGTD: review=".st.et
