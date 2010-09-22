@@ -1194,7 +1194,7 @@ db_loc = vim.eval('g:vikiGtdDB')
 try:
     from viki_search import update_index
     db = xapian.WritableDatabase(db_loc, xapian.DB_CREATE_OR_OPEN)
-    update_index(vim.eval("g:vikiGtdHome"), db, os.path.join(db_loc, vim.eval('s:db_psh')))
+    update_index(vim.eval("g:vikiGtdHome"), db, vim.eval('s:db_psh'))
 except Exception, e:
     print 'Could not update index: Exception is', e
 
