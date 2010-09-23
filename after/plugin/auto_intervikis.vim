@@ -23,6 +23,9 @@ function! s:GetProjectsIndexes(...)
     endif
     " remove the projects/Index.viki
     call filter(index_files, 'v:val != "' . substitute(directory, "\\\\", "/", "g") . '/Index.viki"')
+    " remove the project archives
+    call filter(index_files, 'v:val !~ "ProjectArchives"')
+
     return index_files
 endfunction
 

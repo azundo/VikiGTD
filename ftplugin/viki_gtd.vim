@@ -142,6 +142,8 @@ function! s:Project.GetAllIndexFiles(...) dict "{{{3
     endif
     " remove the projects/Index.viki
     call filter(index_files, 'v:val !~ "' . directory . '/Index.viki"')
+    " remove the project archives
+    call filter(index_files, 'v:val !~ "ProjectArchives"')
     return index_files
 endfunction
 
