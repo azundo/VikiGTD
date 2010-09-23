@@ -1055,7 +1055,6 @@ function! s:FirstUsableWindow()
         if bnum != -1 && getbufvar(bnum, '&buftype') ==# ''
                     \ && !getwinvar(i, '&previewwindow')
                     \ && (!getbufvar(bnum, '&modified') || &hidden)
-            echo 'first usable is ' . i
             return i
         endif
 
