@@ -88,6 +88,20 @@ function! s:Utils.CompareDates(first_date, second_date) "{{{3
     endif
 endfunction
 
+function! s:SortByDate(first, second) " {{{3
+    if type(a:first) != type(a:second)
+        throw "vikiGTDError: args to s:SortByDate must be same type."
+    endif
+
+    if type(a:first) == type("str")
+        return s:Utils.CompareDates(a:first, a:second)
+    elseif type(a:first) == type({}) && has_key(a:first, "date") && has_key(a:second, "date")
+        return s:Utils.CompareDates(a:first['date'], a:second['date'])
+    else
+        throw "vikiGTDError: args to s:SortByDate must be string or dictionary with date key."
+    endif
+endfunction
+
 function! s:Utils.RemoveDuplicates(l) "{{{3
     let val = []
     for item in a:l
@@ -632,6 +646,14 @@ function! s:ItemList.FilterByDate(start_date, end_date) dict "{{{3
     return new_list
 endfunction
 
+function! s:ItemList.SortByDate() dict "{{{3
+    let sorted_list = copy(self.items)
+    call sort(sorted_list, "s:SortByDate")
+    let new_list =self.init()
+    let new_list.items = sorted_list
+    return new_list
+endfunction
+
 function! s:ItemList.FilterByNaturalLanguageDate(filter) dict "{{{3
     let today = strftime("%Y-%m-%d")
     let tomorrow = strftime("%Y-%m-%d", localtime() + 24*60*60)
@@ -833,8 +855,10 @@ function! s:GetItemLists(list_type, filter) " {{{2
 endfunction
 
 
+
 function! s:PrintItems(list_type, filter) " {{{2
     let filtered_items = s:GetItemLists(a:list_type, a:filter)
+    let filtered_items = filtered_items.SortByDate()
     let split_items = split(filtered_items.Print(1), "\n")
     if len(split_items) > 0
         call append(line('.'), split_items)
