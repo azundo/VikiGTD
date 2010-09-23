@@ -157,7 +157,7 @@ function! s:Project.GetIndexFile(project_name, ...) dict "{{{3
     elseif filereadable(filename . project_name . '/Index.viki')
         let filename = filename . project_name . '/Index.viki'
     else
-        throw "vikiGTDError: Project " . project_name . " does not exist."
+        throw "vikiGTDError: Project " . project_name . " does not exist. In s:Project.GetIndexFile."
     endif
     return filename
 endfunction
@@ -203,7 +203,7 @@ function! s:Project.GetOwnIndexFile() dict "{{{3
     elseif filereadable(filename . self.name . '/Index.viki')
         let filename = filename . self.name . '/Index.viki'
     else
-        throw "vikiGTDError: Project " . self.name . " does not exist."
+        throw "vikiGTDError: Project " . self.name . " does not exist. In s:Project.GetOwnIndexFile()"
     endif
     return filename
 endfunction
