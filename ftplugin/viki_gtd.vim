@@ -57,6 +57,15 @@ let s:todo_begin = '^\s*\([-@]\) '
 " Class: Utils {{{2
 "
 let s:Utils = {}
+let s:Utils.day_map = {
+    \'sun': 'Sunday', 
+    \'mon': 'Monday', 
+    \'tue': 'Tuesday',
+    \'wed': 'Wednesday',
+    \'thu': 'Thursday',
+    \'fri': 'Friday',
+    \'sat': 'Saturday',
+    \}
 function! s:Utils.GetCurrentDirectory() dict "{{{3
     return fnamemodify(expand("%:p"), ":h")
 endfunction
@@ -115,6 +124,53 @@ endfunction
 function! s:Utils.GetSundayForWeek(weektime) "{{{3
     let offset = str2nr(strftime("%w", a:weektime))
     return a:weektime - (offset * 24 * 60 * 60)
+endfunction
+
+function! s:Utils.GetDayTimeForDayName(dayname) "{{{3
+    let today = localtime()
+    let sunday = s:Utils.GetSundayForWeek(today)
+    " onset is opposite of offset - getting value for the dayname
+    let onset = 0
+    if a:dayname == "Sunday"
+        let onset = 0
+    elseif a:dayname == "Monday"
+        let onset = 1
+    elseif a:dayname == "Tuesday"
+        let onset = 2
+    elseif a:dayname == "Wednesday"
+        let onset = 3
+    elseif a:dayname == "Thursday"
+        let onset = 4
+    elseif a:dayname == "Friday"
+        let onset = 5
+    elseif a:dayname == "Saturday"
+        let onset = 6
+    endif
+    let daytime = sunday + (onset * 24 * 60 * 60)
+    return daytime
+endfunction
+
+function! s:Utils.GetDateForDayName(dayname) " {{{3
+    return strftime("%Y-%m-%d", s:Utils.GetDayTimeForDayName(a:dayname))
+endfunction
+
+function! s:Utils.GetNextDateForDayName(dayname) " {{{3
+    let daytime = s:Utils.GetDayTimeForDayName(a:dayname)
+    let today = localtime()
+    " move daytime to the next week if we are before today
+    if daytime < today
+        let daytime = daytime + 7 * 24 * 60 * 60
+    endif
+    return strftime("%Y-%m-%d", daytime)
+endfunction
+
+function! s:Utils.SubstituteDates(text) "{{{3
+    let text = a:text
+    for day in keys(s:Utils.day_map)
+        let text = substitute(text, '\<' . day . '\>', s:Utils.GetNextDateForDayName(s:Utils.day_map[day]), 'g')
+        let text = substitute(text, '\<' . s:Utils.day_map[day] . '\>', s:Utils.GetNextDateForDayName(s:Utils.day_map[day]), 'g')
+    endfor
+    return text
 endfunction
 
 
@@ -977,6 +1033,7 @@ function! s:AddTodoCmd(project_name) " {{{2
     if todo_text == ''
         return
     endif
+    let todo_text = s:Utils.SubstituteDates(todo_text)
     let p = s:Project.init(a:project_name)
     call p.Scrape()
     let td = s:Todo.init()
