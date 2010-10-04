@@ -7,7 +7,7 @@ function! s:GetSundayForWeek(weektime)
     return a:weektime - (offset * 24 * 60 * 60)
 endfunction
 
-function! s:GetDateForDayName(dayname)
+function! s:GetDayTimeForDayName(dayname)
     let today = localtime()
     let sunday = s:GetSundayForWeek(today)
     " onset is opposite of offset - getting value for the dayname
@@ -27,7 +27,22 @@ function! s:GetDateForDayName(dayname)
     elseif a:dayname == "Saturday"
         let onset = 6
     endif
-    return strftime("%Y-%m-%d", sunday + (onset * 24 * 60 * 60))
+    let daytime = sunday + (onset * 24 * 60 * 60)
+    return daytime
+endfunction
+
+function! s:GetDateForDayName(dayname)
+    return strftime("%Y-%m-%d", s:GetDayTimeForDayName(a:dayname))
+endfunction
+
+function! s:GetNextDateForDayName(dayname)
+    let daytime = s:GetDayTimeForDayName(a:dayname)
+    let today = localtime()
+    " move daytime to the next week if we are before today
+    if daytime < today
+        let daytime = daytime + 7 * 24 * 60 * 60
+    endif
+    return strftime("%Y-%m-%d", daytime)
 endfunction
 
 " function! GetFirstSundayOfMonth()
@@ -143,6 +158,23 @@ exec "Snippet month * ".st."date".et."
 " id stands for insert date - insert the current date formatted in the proper
 " style. Nice when you want to add a date timestamp to new files.
 exec "Snippet id ".strftime("%Y-%m-%d").st.et
+
+exec "Snippet tm ".strftime("%Y-%m-%d", localtime() + 24*60*60).st.et
+
+let day_map = {
+    \'sun': 'Sunday', 
+    \'mon': 'Monday', 
+    \'tue': 'Tuesday',
+    \'wed': 'Wednesday',
+    \'thu': 'Thursday',
+    \'fri': 'Friday',
+    \'sat': 'Saturday',
+    \}
+
+for day in keys(day_map)
+    exec "Snippet " . day . " " . s:GetNextDateForDayName(day_map[day]).st.et
+endfor
+
 
 exec "Snippet project * ".st."name".et."
 \<CR>
