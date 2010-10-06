@@ -1408,6 +1408,12 @@ call matchadd("DueToday", strftime("%Y-%m-%d"))
 highlight DueTomorrow ctermfg=202
 call matchadd("DueTomorrow", strftime("%Y-%m-%d", localtime() + 24*60*60))
 
+" priority highlighting
+highlight VikiGTDUrgent ctermfg=Red ctermbg=21
+highlight VikiGTDImportant ctermfg=Red ctermbg=21
+call matchadd("VikiGTDUrgent", '\w\@!!!\w\@!') " wish I could do \<!!\> but ! is not a word character on unix
+call matchadd("VikiGTDImportant", '\w\@!#!\w\@!') " wish I could do \<#!\> but ! is not a word character on unix
+
 " highlight VikiGTDProject ctermfg=40
 highlight VikiGTDProject ctermfg=33
 call matchadd("VikiGTDProject", '#\w\+\s*$')
