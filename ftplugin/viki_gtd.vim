@@ -909,8 +909,9 @@ endfunction
 " Private Functions {{{1
 "
 
-function! s:GetItemLists(list_type, filter) " {{{2
-    let all_projects = values(s:Project.ScrapeDirectory())
+function! s:GetItemLists(list_type, filter, ...) " {{{2
+    TVarArg ['directory', g:vikiGtdProjectsDir]
+    let all_projects = values(s:Project.ScrapeDirectory(directory))
     let all_item_lists = []
     let proto = all_projects[0][ a:list_type ].init()
     for proj in all_projects
@@ -1797,7 +1798,15 @@ if exists('UnitTest')
         call self.AssertEquals(8, todolist.ending_line)
     endfunction
 
+    " Get Item List Testing {{{2
     let b:test_get_item_lists = UnitTest.init("TestGetItems")
+
+    function! b:test_get_item_lists.TestNoFilter() dict
+        let current_dir = s:Utils.GetCurrentDirectory()
+        let all_todos = s:GetItemLists('todo_list', 'All', current_dir . '/fixtures/projects')
+        echo len(all_todos.items)
+        let all_todos = all_todos.SortByDate()
+    endfunction
 
     " Filter Testing {{{2
     let b:test_filter = UnitTest.init("TestFilter")
