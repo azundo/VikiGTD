@@ -1,0 +1,9 @@
+** Filter Testing List
+    @ January 2010-01-01
+    @ February 2010-02-01 @tamale
+        @ Later Feb 2010-02-15
+    @ March 2010-03-01 @Tamale
+        @ A nested March
+    @ Some todo @computer
+        @ Another todo @phone
+            @ A third todo @Bole

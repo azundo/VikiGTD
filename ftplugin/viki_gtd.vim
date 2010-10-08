@@ -685,32 +685,39 @@ function! s:ItemList.GetListForLine(...) " {{{3
     throw "vikiGTDError: No list on given line."
 endfunction
 
-function! s:ItemList.Filter(filter_function) dict " {{{3
+function! s:ItemList.Filter(filter_function, ...) dict " {{{3
+    TVarArg ['filter_children', 0]
     let filtered_items = copy(self.items)
     call filter(filtered_items, a:filter_function)
-    for item in filtered_items
-        call filter(item.children, a:filter_function)
-    endfor
-    let new_list = self.init()
-    let new_list.items = filtered_items
-    return new_list
+    if filter_children
+        for item in filtered_items
+            let item.children = filter(item.children, a:filter_function)
+        endfor
+    endif
+    let self.items = filtered_items
+    return self
+endfunction
+
+function! s:ItemList.Sort(sort_function) dict "{{{3
+    TVarArg ['sort_children', 0]
+    let sorted_list = copy(self.items)
+    call sort(sorted_list, a:sort_function)
+    if sort_children
+        for item in sorted_items
+            call sort(item.children, a:sort_function)
+        endfor
+    endif
+    let self.items = sorted_list
+    return self
 endfunction
 
 function! s:ItemList.FilterByDate(start_date, end_date) dict "{{{3
-    let filtered_list = copy(self.items)
-    let filter_function = 'v:val.date != "" && s:Utils.CompareDates(v:val.date, a:start_date) >= 0 && s:Utils.CompareDates(v:val.date, a:end_date) <= 0'
-    call filter(filtered_list, filter_function)
-    let new_list =self.init()
-    let new_list.items = filtered_list
-    return new_list
+    let filter_function = 'v:val.date != "" && s:Utils.CompareDates(v:val.date, "' . a:start_date . '") >= 0 && s:Utils.CompareDates(v:val.date, "' . a:end_date . '") <= 0'
+    return self.Filter(filter_function)
 endfunction
 
 function! s:ItemList.SortByDate() dict "{{{3
-    let sorted_list = copy(self.items)
-    call sort(sorted_list, "s:SortByDate")
-    let new_list =self.init()
-    let new_list.items = sorted_list
-    return new_list
+    return self.Sort("s:SortByDate")
 endfunction
 
 function! s:ItemList.FilterByNaturalLanguageDate(filter) dict "{{{3
@@ -732,7 +739,7 @@ function! s:ItemList.FilterByNaturalLanguageDate(filter) dict "{{{3
     elseif a:filter == 'All'
         let filtered_list = self.FilterByDate("0000-00-00", "9999-99-99")
     elseif a:filter == 'Undated'
-        let filtered_list = self.Filter('v:val.date == ""')
+        let filtered_list = self.Filter('v:val.date == ""', 1)
     elseif a:filter == ''
         " get overdue up to tomorrow if filter is blank
         let filtered_list = self.FilterByDate("0000-00-00", tomorrow)
@@ -935,7 +942,7 @@ function! s:CopyUndoneTodos() " {{{2
         let setup = s:SetupList.GetSetupForDate(strftime("%Y-%m-%d", localtime() - 24*60*60*days_back))
         let days_back = days_back + 1
     endwhile
-    let filtered_setup = setup.Filter('v:val.is_complete == 0')
+    let filtered_setup = setup.Filter('v:val.is_complete == 0', 1)
     let split_items = split(filtered_setup.Print(1), "\n")
     if len(split_items) > 0
         call append(line('.'), split_items)
@@ -1675,10 +1682,10 @@ if exists('UnitTest')
         let filtered_todos = new_todolist.FilterByDate('0000-00-00', '9999-99-99')
         call self.AssertEquals(10, len(filtered_todos.items))
     
-        let filtered_todos = new_todolist.FilterByDate('2010-01-01', '2010-01-31')
+        let filtered_todos = filtered_todos.FilterByDate('2010-01-01', '2010-01-31')
         call self.AssertEquals(7, len(filtered_todos.items))
     
-        let filtered_todos = new_todolist.FilterByDate('2010-01-01', '2010-01-03')
+        let filtered_todos = filtered_todos.FilterByDate('2010-01-01', '2010-01-03')
         call self.AssertEquals(3, len(filtered_todos.items))
     endfunction
     
@@ -1785,6 +1792,53 @@ if exists('UnitTest')
 
     let b:test_get_item_lists = UnitTest.init("TestGetItems")
 
+    " Filter Testing {{{2
+    let b:test_filter = UnitTest.init("TestFilter")
+
+    function! b:test_filter.TestFilterBasic() dict
+        let current_dir = s:Utils.GetCurrentDirectory()
+        let lines = readfile(current_dir . '/fixtures/testFilter.txt')
+        let new_list = s:ItemList.init()
+        call new_list.ParseLines(lines)
+        let new_list = new_list.Filter('v:val.date != ""')
+        call self.AssertEquals(4, len(new_list.items))
+    endfunction
+
+    function! b:test_filter.TestFilterLinked() dict
+        let current_dir = s:Utils.GetCurrentDirectory()
+        let lines = readfile(current_dir . '/fixtures/testFilter.txt')
+        let new_list = s:ItemList.init()
+        call new_list.ParseLines(lines)
+        let new_list.file_name = 'arbitrary'
+        let new_list = new_list.Filter('v:val.date != ""').Filter('v:val.context == "@Tamale"')
+        call self.AssertEquals(2, len(new_list.items))
+        for item in new_list.items
+            call self.AssertEquals(1, len(item.children))
+        endfor
+        call self.AssertEquals('arbitrary', new_list.file_name) " make sure we still have old properties
+    endfunction
+
+    function! b:test_filter.TestFilterChildren() dict
+        let current_dir = s:Utils.GetCurrentDirectory()
+        let lines = readfile(current_dir . '/fixtures/testFilter.txt')
+        let new_list = s:ItemList.init()
+        call new_list.ParseLines(lines)
+        let new_list = new_list.Filter('v:val.date != "" && v:val.context == "@Tamale"', 1)
+        call self.AssertEquals(2, len(new_list.items))
+        for item in new_list.items
+            call self.AssertEquals(0, len(item.children))
+        endfor
+    endfunction
+
+    function! b:test_filter.TestFilterNested() dict
+        let current_dir = s:Utils.GetCurrentDirectory()
+        let lines = readfile(current_dir . '/fixtures/testFilter.txt')
+        let new_list = s:ItemList.init()
+        call new_list.ParseLines(lines)
+        let new_list = new_list.Filter('v:val.context == "@bole"', 1)
+        call self.AssertEquals(1, len(new_list.items))
+    endfunction
+
 
     " Test Suite for testing all. Buffer var so we can run from command line {{{2
     let b:test_all = TestSuite.init("TestVikiGTD")
@@ -1796,6 +1850,7 @@ if exists('UnitTest')
     call b:test_all.AddUnitTest(b:test_itemlist)
     call b:test_all.AddUnitTest(b:test_project)
     call b:test_all.AddUnitTest(b:test_get_item_lists)
+    call b:test_all.AddUnitTest(b:test_filter)
     
     " Add objects to FunctionRegister {{{2
     call FunctionRegister.AddObject(s:Utils, 'Utils')
