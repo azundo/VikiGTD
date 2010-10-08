@@ -111,6 +111,16 @@ function! s:SortByDate(first, second) " {{{3
     endif
 endfunction
 
+function! s:SortByContext(first, second) " {{{3
+    if a:first['context'] == a:second['context']
+        return 0
+    elseif a:first['context'] < a:second['context']
+        return -1
+    else
+        return 1
+    endif
+endfunction
+
 function! s:Utils.RemoveDuplicates(l) "{{{3
     let val = []
     for item in a:l
@@ -1316,6 +1326,17 @@ function! b:VikiGTDGetProjectNamesForAutocompletion(...) "{{{2
     return join(project_names, "\n")
 endfunction
 
+function! b:VikiGTDGetContextsForAutocompletion(...) "{{{2
+    let todo_lists = s:GetItemLists('todo_list')
+    let contexts = []
+    for item in todo_lists.items
+        if item.context != '' && index(contexts, item.context) == -1
+            call add(contexts, item.context)
+        endif
+    endfor
+    return join(contexts, "\n")
+endfunction
+
 " Commands Mappings and Highlight Groups {{{1
 "
 " Autocommands {{{2
@@ -1343,6 +1364,10 @@ for date_range in s:date_ranges
         exe "command PrintAppointments" . date_range . " :call s:PrintItems(\"appointment_list\", [s:ItemList.FilterByNaturalLanguageDate(\"" . date_range . "\")], \"s:SortByDate\")"
     endif
 
+    if !exists(":PrintTodosByContext")
+        command -nargs=1 -complete=custom,b:VikiGTDGetContextsForAutocompletion PrintTodosByContext :call s:PrintItems("todo_list", ["v:val.context == \"" . (<q-args>) . "\""], "s:SortByDate")
+        " command PrintTodosByContext :call s:PrintItems("todo_list", [], "s:SortByContext")
+    endif
 
     if !exists(":Todos" . date_range)
         exe "command Todos" . date_range .  " " . s:OpenItemsInSp("Todos", date_range)
