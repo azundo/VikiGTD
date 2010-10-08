@@ -382,7 +382,7 @@ function! s:Item.ParseLines(lines, ...) dict "{{{3
     let self.line_length = len(a:lines)
     let first_line = remove(a:lines, 0)
     if match(first_line, self.begin_pattern) == -1
-        throw "vikiGTDError: Item is improperly constructed - first line does not start with a bullet point character (@ or -)."
+        throw "vikiGTDError: Item is improperly constructed - first line does not start with a bullet point character (@ or -). " . first_line
     endif
 
     if matchlist(first_line, self.begin_pattern)[1] == '-'
