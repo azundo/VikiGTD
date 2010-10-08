@@ -323,6 +323,7 @@ function! s:Item.init() dict "{{{3
     let instance = copy(s:Item)
     let instance.text = ""
     let instance.date = ""
+    let instance.context = ""
     let instance.project_name = ""
     let instance.is_complete = 0
     let instance.starting_line = -1
@@ -405,6 +406,8 @@ function! s:Item.ParseLines(lines, ...) dict "{{{3
     " remove pomodoro references
     let self.text = substitute(self.text, '\s*[Xx]\+\s*$', '', '')
     let self.date = matchstr(self.text, '\d\{4\}-\d\{2\}-\d\{2\}')
+    " get context
+    let self.context = matchstr(self.text, '\w\@<!@\w\+\>')
     " get priority rating
     let self.priority = matchstr(self.text, '\w\@![#!]!\w\@!')
     if a:0 > 0 && type(a:1) == type(0)
@@ -1423,6 +1426,10 @@ highlight VikiGTDUrgent ctermfg=Red ctermbg=21
 highlight VikiGTDImportant ctermfg=Red ctermbg=21
 call matchadd("VikiGTDUrgent", '\w\@!!!\w\@!') " wish I could do \<!!\> but ! is not a word character on unix
 call matchadd("VikiGTDImportant", '\w\@!#!\w\@!') " wish I could do \<#!\> but ! is not a word character on unix
+
+"context highlighting
+highlight VikiGTDContext ctermfg=46
+call matchadd("VikiGTDContext", '\w\@<!@\w\+\>')
 
 " highlight VikiGTDProject ctermfg=40
 highlight VikiGTDProject ctermfg=33
