@@ -419,7 +419,7 @@ function! s:Item.ParseLines(lines, ...) dict "{{{3
     " get context
     let self.context = matchstr(self.text, '\w\@<!@\w\+\>')
     " get priority rating
-    let self.priority = matchstr(self.text, '\w\@![#!]!\w\@!')
+    let self.priority = matchstr(self.text, '\w\@<![#!]!\w\@<!')
     if a:0 > 0 && type(a:1) == type(0)
         let self.starting_line = a:1
     endif
