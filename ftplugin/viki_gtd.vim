@@ -701,7 +701,7 @@ function! s:ItemList.Filter(filter_function, ...) dict " {{{3
     return self
 endfunction
 
-function! s:ItemList.Sort(sort_function) dict "{{{3
+function! s:ItemList.Sort(sort_function, ...) dict "{{{3
     TVarArg ['sort_children', 0]
     let sorted_list = copy(self.items)
     call sort(sorted_list, a:sort_function)
@@ -716,11 +716,7 @@ endfunction
 
 function! s:ItemList.FilterByDate(start_date, end_date) dict "{{{3
     let filter_function = 'v:val.date != "" && s:Utils.CompareDates(v:val.date, "' . a:start_date . '") >= 0 && s:Utils.CompareDates(v:val.date, "' . a:end_date . '") <= 0'
-    return self.Filter(filter_function)
-endfunction
-
-function! s:ItemList.SortByDate() dict "{{{3
-    return self.Sort("s:SortByDate")
+    return filter_function
 endfunction
 
 function! s:ItemList.FilterByNaturalLanguageDate(filter) dict "{{{3
@@ -730,26 +726,26 @@ function! s:ItemList.FilterByNaturalLanguageDate(filter) dict "{{{3
     let next_week_sunday = strftime("%Y-%m-%d", s:Utils.GetSundayForWeek(localtime() + 7*24*60*60))
     let yesterday = strftime("%Y-%m-%d", localtime() - 24*60*60)
     if a:filter == 'Today'
-        let filtered_list = self.FilterByDate(today, today)
+        let filter_function = s:ItemList.FilterByDate(today, today)
     elseif a:filter == 'TodayAndTomorrow'
-        let filtered_list = self.FilterByDate(today, tomorrow)
+        let filter_function = s:ItemList.FilterByDate(today, tomorrow)
     elseif a:filter == 'Tomorrow'
-        let filtered_list = self.FilterByDate(tomorrow, tomorrow)
+        let filter_function = s:ItemList.FilterByDate(tomorrow, tomorrow)
     elseif a:filter == 'Overdue'
-        let filtered_list = self.FilterByDate("0000-00-00", yesterday)
+        let filter_function = s:ItemList.FilterByDate("0000-00-00", yesterday)
     elseif a:filter == 'ThisWeek'
-        let filtered_list = self.FilterByDate(this_week_sunday, next_week_sunday)
+        let filter_function = s:ItemList.FilterByDate(this_week_sunday, next_week_sunday)
     elseif a:filter == 'All'
-        let filtered_list = self.FilterByDate("0000-00-00", "9999-99-99")
+        let filter_function = s:ItemList.FilterByDate("0000-00-00", "9999-99-99")
     elseif a:filter == 'Undated'
-        let filtered_list = self.Filter('v:val.date == ""', 1)
+        let filter_function = s:ItemList.Filter('v:val.date == ""', 1)
     elseif a:filter == ''
         " get overdue up to tomorrow if filter is blank
-        let filtered_list = self.FilterByDate("0000-00-00", tomorrow)
+        let filter_function = s:ItemList.FilterByDate("0000-00-00", tomorrow)
     else
-        let filtered_list = self.FilterByDate("0000-00-00", "9999-99-99")
+        let filter_function = s:ItemList.FilterByDate("0000-00-00", "9999-99-99")
     endif
-    return filtered_list
+    return filter_function
 endfunction
 
 
@@ -909,7 +905,7 @@ endfunction
 " Private Functions {{{1
 "
 
-function! s:GetItemLists(list_type, filter, ...) " {{{2
+function! s:GetItemLists(list_type, ...) " {{{2
     TVarArg ['directory', g:vikiGtdProjectsDir]
     let all_projects = values(s:Project.ScrapeDirectory(directory))
     let all_item_lists = []
@@ -920,16 +916,21 @@ function! s:GetItemLists(list_type, filter, ...) " {{{2
         endif
     endfor
     let all_items_list = proto.CombineLists(all_item_lists)
-    let filtered_items = all_items_list.FilterByNaturalLanguageDate(a:filter)
-    return filtered_items
+    return all_items_list
 endfunction
 
 
 
-function! s:PrintItems(list_type, filter) " {{{2
-    let filtered_items = s:GetItemLists(a:list_type, a:filter)
-    let filtered_items = filtered_items.SortByDate()
-    let split_items = split(filtered_items.Print(1), "\n")
+function! s:PrintItems(list_type, ...) " {{{2
+    TVarArg ['filters', []], ['sort_function', 0]
+    let item_list = s:GetItemLists(a:list_type)
+    for filter in filters
+        let item_list = item_list.Filter(filter)
+    endfor
+    if type(sort_function) == type("") &&  len(sort_function) > 0
+        let item_list = item_list.Sort(sort_function)
+    endif
+    let split_items = split(item_list.Print(1), "\n")
     if len(split_items) > 0
         call append(line('.'), split_items)
         " format the items to the correct text width with gq
@@ -1304,7 +1305,10 @@ endfunction
 " Public Functions {{{1
 
 function! VikiGTDGetTodos(filter) "{{{2
-    return s:GetItemLists('todo_list', a:filter)
+    let todo_lists = s:GetItemLists('todo_list')
+    let todo_lists = todo_lists.Filter(s:ItemList.FilterByNaturalLanguageDate(a:filter))
+    let todo_lists = todo_lists.Sort('s:SortByDate')
+    return todo_lists
 endfunction
 
 function! b:VikiGTDGetProjectNamesForAutocompletion(...) "{{{2
@@ -1326,16 +1330,22 @@ endif
 let s:date_ranges = ['', 'Today', 'Tomorrow', 'ThisWeek', 'TodayAndTomorrow', 'Overdue', 'All', 'Undated']
 for date_range in s:date_ranges
 
-    if !exists(":Todos" . date_range)
-        exe "command Todos" . date_range .  " " . s:OpenItemsInSp("Todos", date_range)
-    endif
 
     if !exists(":PrintTodos" . date_range)
-        exe "command PrintTodos" . date_range . " :call s:PrintItems(\"todo_list\", \"" . date_range . "\")"
+        exe "command PrintTodos" . date_range . " :call s:PrintItems(\"todo_list\", [s:ItemList.FilterByNaturalLanguageDate(\"" . date_range . "\")], \"s:SortByDate\")"
     endif
 
     if !exists(":PrintWfs" . date_range)
-        exe "command PrintWfs" . date_range . " :call s:PrintItems(\"waiting_for_list\", \"" . date_range . "\")"
+        exe "command PrintWfs" . date_range . " :call s:PrintItems(\"waiting_for_list\", [s:ItemList.FilterByNaturalLanguageDate(\"" . date_range . "\")], \"s:SortByDate\")"
+    endif
+
+    if !exists(":PrintAppointments" . date_range)
+        exe "command PrintAppointments" . date_range . " :call s:PrintItems(\"appointment_list\", [s:ItemList.FilterByNaturalLanguageDate(\"" . date_range . "\")], \"s:SortByDate\")"
+    endif
+
+
+    if !exists(":Todos" . date_range)
+        exe "command Todos" . date_range .  " " . s:OpenItemsInSp("Todos", date_range)
     endif
 
     if !exists(":Wfs" . date_range)
@@ -1346,9 +1356,6 @@ for date_range in s:date_ranges
         exe "command Appointments" . date_range .  " " . s:OpenItemsInSp("Appointments", date_range)
     endif
 
-    if !exists(":PrintAppointments" . date_range)
-        exe "command PrintAppointments" . date_range . " :call s:PrintItems(\"appointment_list\", \"" . date_range . "\")"
-    endif
 
 endfor
 
@@ -1687,13 +1694,13 @@ if exists('UnitTest')
         let new_todolist = s:TodoList.init()
         call new_todolist.ParseLines(lines)
     
-        let filtered_todos = new_todolist.FilterByDate('0000-00-00', '9999-99-99')
+        let filtered_todos = new_todolist.Filter(s:ItemList.FilterByDate('0000-00-00', '9999-99-99'))
         call self.AssertEquals(10, len(filtered_todos.items))
     
-        let filtered_todos = filtered_todos.FilterByDate('2010-01-01', '2010-01-31')
+        let filtered_todos = filtered_todos.Filter(s:ItemList.FilterByDate('2010-01-01', '2010-01-31'))
         call self.AssertEquals(7, len(filtered_todos.items))
     
-        let filtered_todos = filtered_todos.FilterByDate('2010-01-01', '2010-01-03')
+        let filtered_todos = filtered_todos.Filter(s:ItemList.FilterByDate('2010-01-01', '2010-01-03'))
         call self.AssertEquals(3, len(filtered_todos.items))
     endfunction
     
@@ -1803,9 +1810,8 @@ if exists('UnitTest')
 
     function! b:test_get_item_lists.TestNoFilter() dict
         let current_dir = s:Utils.GetCurrentDirectory()
-        let all_todos = s:GetItemLists('todo_list', 'All', current_dir . '/fixtures/projects')
+        let all_todos = s:GetItemLists('todo_list', current_dir . '/fixtures/projects')
         echo len(all_todos.items)
-        let all_todos = all_todos.SortByDate()
     endfunction
 
     " Filter Testing {{{2
