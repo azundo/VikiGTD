@@ -440,6 +440,7 @@ function! s:Item.init() dict "{{{3
     let instance.text = ""
     let instance.date = ""
     let instance.context = ""
+    let instance.contact = ""
     let instance.project_name = ""
     let instance.is_complete = 0
     let instance.starting_line = -1
@@ -522,9 +523,11 @@ function! s:Item.ParseLines(lines, ...) dict "{{{3
     " remove pomodoro references
     let self.text = substitute(self.text, '\s*[Xx]\+\s*$', '', '')
     let self.date = matchstr(self.text, '\d\{4\}-\d\{2\}-\d\{2\}')
-    " get context
+    " get context @context
     let self.context = matchstr(self.text, '\w\@<!@\w\+\>')
-    " get priority rating
+    " get contact &contact
+    let self.contact = matchstr(self.text, '\w\@<!&\w\+\>')
+    " get priority rating !! or #!
     let self.priority = matchstr(self.text, '\w\@<![#!]!\w\@<!')
     if a:0 > 0 && type(a:1) == type(0)
         let self.starting_line = a:1
@@ -1443,6 +1446,17 @@ function! b:VikiGTDGetContextsForAutocompletion(...) "{{{2
     return join(contexts, "\n")
 endfunction
 
+function! b:VikiGTDGetContactsForAutocompletion(...) "{{{2
+    let todo_lists = s:GetItemLists('todo_list')
+    let contacts = []
+    for item in todo_lists.items
+        if item.contact != '' && index(contacts, item.contact) == -1
+            call add(contacts, item.contact)
+        endif
+    endfor
+    return join(contacts, "\n")
+endfunction
+
 " Commands Mappings and Highlight Groups {{{1
 "
 " Autocommands {{{2
@@ -1489,6 +1503,11 @@ endfor
 if !exists(":PrintTodosByContext")
     command -nargs=1 -complete=custom,b:VikiGTDGetContextsForAutocompletion PrintTodosByContext :call s:PrintItems("todo_list", ["v:val.context == \"" . (<q-args>) . "\""], "s:SortByPriorityDate")
     " command PrintTodosByContext :call s:PrintItems("todo_list", [], "s:SortByContext")
+endif
+
+if !exists(":PrintTodosByContact")
+    command -nargs=1 -complete=custom,b:VikiGTDGetContactsForAutocompletion PrintTodosByContact :call s:PrintItems("todo_list", ["v:val.contact == \"" . (<q-args>) . "\""], "s:SortByPriorityDate")
+    " command PrintTodosByContact :call s:PrintItems("todo_list", [], "s:SortByContact")
 endif
 
 
@@ -1570,6 +1589,10 @@ call matchadd("VikiGTDImportant", '\w\@!#!\w\@!') " wish I could do \<#!\> but !
 "context highlighting
 highlight VikiGTDContext ctermfg=46
 call matchadd("VikiGTDContext", '\w\@<!@\w\+\>')
+
+"contact highlighting
+highlight VikiGTDContact ctermfg=200
+call matchadd("VikiGTDContact", '\w\@<!&\w\+\>')
 
 " highlight VikiGTDProject ctermfg=40
 highlight VikiGTDProject ctermfg=33
