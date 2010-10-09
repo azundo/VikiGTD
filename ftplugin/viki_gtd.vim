@@ -1088,6 +1088,17 @@ function! s:OpenItemsInSp(item_type, filter) "{{{2
     return ':' . join(commands, ' | ')
 endfunction
 
+function! s:RunCmdInSp(c) "{{{2
+    let commands = []
+    call add(commands, "rightb vsp /tmp/vikiList.viki")
+    call add(commands, "set buftype=nofile")
+    call add(commands, "set bufhidden=delete")
+    call add(commands, "setlocal noswapfile")
+    call add(commands, "map <buffer> q :q<CR>")
+    call add(commands, a:c)
+    return ':' . join(commands, ' | ')
+endfunction
+
 function! s:MarkItemUnderCursorComplete() "{{{2
     let current_item = s:Item.GetItemOnLine()
     if current_item.is_complete == 1
@@ -1505,8 +1516,18 @@ if !exists(":PrintTodosByContext")
     " command PrintTodosByContext :call s:PrintItems("todo_list", [], "s:SortByContext")
 endif
 
+if !exists(":TodosByContext")
+    command -nargs=1 -complete=custom,b:VikiGTDGetContextsForAutocompletion TodosByContext :exe s:RunCmdInSp("PrintTodosByContext " . <q-args>)
+    " command PrintTodosByContext :call s:PrintItems("todo_list", [], "s:SortByContext")
+endif
+
 if !exists(":PrintTodosByContact")
     command -nargs=1 -complete=custom,b:VikiGTDGetContactsForAutocompletion PrintTodosByContact :call s:PrintItems("todo_list", ["v:val.contact == \"" . (<q-args>) . "\""], "s:SortByPriorityDate")
+    " command PrintTodosByContact :call s:PrintItems("todo_list", [], "s:SortByContact")
+endif
+
+if !exists(":TodosByContact")
+    command -nargs=1 -complete=custom,b:VikiGTDGetContactsForAutocompletion TodosByContact :exe s:RunCmdInSp("PrintTodosByContact " . <q-args>)
     " command PrintTodosByContact :call s:PrintItems("todo_list", [], "s:SortByContact")
 endif
 
