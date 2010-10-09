@@ -90,36 +90,15 @@ function! s:Utils.CompareDates(first_date, second_date) "{{{3
     " gt/lt
     let first_ymd = str2nr(join(split(a:first_date, '-'), ''))
     let second_ymd = str2nr(join(split(a:second_date, '-'), ''))
+    " check for 0 (empty string) and put those dates last
     if first_ymd > second_ymd
-        return 1
+        return (second_ymd != 0) ? 1 : -1
     else
-        return -1
+        return (first_ymd != 0) ? -1 : 1
     endif
 endfunction
 
-function! s:SortByDate(first, second) " {{{3
-    if type(a:first) != type(a:second)
-        throw "vikiGTDError: args to s:SortByDate must be same type."
-    endif
 
-    if type(a:first) == type("str")
-        return s:Utils.CompareDates(a:first, a:second)
-    elseif type(a:first) == type({}) && has_key(a:first, "date") && has_key(a:second, "date")
-        return s:Utils.CompareDates(a:first['date'], a:second['date'])
-    else
-        throw "vikiGTDError: args to s:SortByDate must be string or dictionary with date key."
-    endif
-endfunction
-
-function! s:SortByContext(first, second) " {{{3
-    if a:first['context'] == a:second['context']
-        return 0
-    elseif a:first['context'] < a:second['context']
-        return -1
-    else
-        return 1
-    endif
-endfunction
 
 function! s:Utils.RemoveDuplicates(l) "{{{3
     let val = []
@@ -183,6 +162,133 @@ function! s:Utils.SubstituteDates(text) "{{{3
     return text
 endfunction
 
+" Class: Sorter {{{2
+let s:Sorter = {
+            \'sort_functions': []
+            \}
+
+function! s:Sorter.reset() " {{{3
+    let s:Sorter.sort_functions = []
+endfunction
+
+
+function! s:Sorter.SortByDate(first, second) " {{{3
+    if type(a:first) != type(a:second)
+        throw "vikiGTDError: args to s:SortByDate must be same type."
+    endif
+
+    if type(a:first) == type("str")
+        return s:Utils.CompareDates(a:first, a:second)
+    elseif type(a:first) == type({}) && has_key(a:first, "date") && has_key(a:second, "date")
+        return s:Utils.CompareDates(a:first['date'], a:second['date'])
+    else
+        throw "vikiGTDError: args to s:SortByDate must be string or dictionary with date key."
+    endif
+endfunction
+
+function! s:Sorter.SortByContext(first, second) " {{{3
+    if type(a:first) != type(a:second)
+        throw "vikiGTDError: args to Sorting Functions must be same type."
+    endif
+
+    if type(a:first) == type("str")
+        let fst = a:first
+        let second = a:second
+    elseif type(a:first) == type({}) && has_key(a:first, "context") && has_key(a:second, "context")
+        let fst = a:first['context']
+        let second = a:second['context']
+    else
+        throw "vikiGTDError: args to s:Sorter.SortByContext must be string or dictionary with context key."
+    endif
+    return (fst == second) ? 0 : (fst < second) ? (fst != '' ? -1 : 1) : (second != '' ? 1 : -1)
+endfunction
+
+function! s:Sorter.SortByPriority(first, second) " {{{3
+    if type(a:first) != type(a:second)
+        throw "vikiGTDError: args to Sorting Functions must be same type."
+    endif
+    if type(a:first) == type("str")
+        let fst = a:first
+        let second = a:second
+    elseif type(a:first) == type({}) && has_key(a:first, "priority") && has_key(a:second, "priority")
+        let fst = a:first['priority']
+        let second = a:second['priority']
+    else
+        throw "vikiGTDError: args to s:Sorter.SortByPriority must be string or dictionary with priority key."
+    endif
+
+    if fst == second
+        return 0
+    elseif fst == '!!'
+        return -1
+    elseif second == '!!'
+        return 1
+    elseif fst = '#!'
+        return -1
+    elseif second == '#!'
+        return 1
+    else
+        return 0
+    endif
+endfunction
+
+
+function! s:Sorter.AddSortFunction(f) " {{{3
+    let s:Sorter.sort_functions = add(s:Sorter.sort_functions, a:f)
+endfunction
+
+function! s:SorterSort(first, second, ...) " {{{3
+    TVarArg ['function_index', 0]
+    if len(s:Sorter.sort_functions) < function_index + 1
+        " return a:first == a:second ? 0 : a:first < a:second ? -1 : 1
+        " we've run out of sorting functions, so they're equal
+        return 0
+    endif
+    if type(s:Sorter.sort_functions[function_index]) == type(function("tr"))
+        let Next_sort_fun = s:Sorter.sort_functions[function_index]
+    else
+        let Next_sort_fun = function(s:Sorter.sort_functions[function_index])
+    endif
+    let next_sort_result = call(Next_sort_fun, [a:first, a:second], s:Sorter)
+    if next_sort_result == 0
+        return s:SorterSort(a:first, a:second, function_index + 1)
+    else
+        return next_sort_result
+    endif
+endfunction
+
+function! s:SortByDate(first, second) " {{{3
+    call s:Sorter.reset()
+    call s:Sorter.AddSortFunction(s:Sorter.SortByDate)
+    return s:SorterSort(a:first, a:second)
+endfunction
+
+function! s:SortByContext(first, second) " {{{3
+    call s:Sorter.reset()
+    call s:Sorter.AddSortFunction(s:Sorter.SortByContext)
+    return s:SorterSort(a:first, a:second)
+endfunction
+
+function! s:SortByDateContext(first, second) " {{{3
+    call s:Sorter.reset()
+    call s:Sorter.AddSortFunction(s:Sorter.SortByDate)
+    call s:Sorter.AddSortFunction(s:Sorter.SortByContext)
+    return s:SorterSort(a:first, a:second)
+endfunction
+
+function! s:SortByDatePriority(first, second) " {{{3
+    call s:Sorter.reset()
+    call s:Sorter.AddSortFunction(s:Sorter.SortByDate)
+    call s:Sorter.AddSortFunction(s:Sorter.SortByPriority)
+    return s:SorterSort(a:first, a:second)
+endfunction
+
+function! s:SortByPriorityDate(first, second) " {{{3
+    call s:Sorter.reset()
+    call s:Sorter.AddSortFunction(s:Sorter.SortByPriority)
+    call s:Sorter.AddSortFunction(s:Sorter.SortByDate)
+    return s:SorterSort(a:first, a:second)
+endfunction
 
 " Class: Project {{{2
 "
@@ -742,18 +848,18 @@ function! s:ItemList.FilterByNaturalLanguageDate(filter) dict "{{{3
     elseif a:filter == 'Tomorrow'
         let filter_function = s:ItemList.FilterByDate(tomorrow, tomorrow)
     elseif a:filter == 'Overdue'
-        let filter_function = s:ItemList.FilterByDate("0000-00-00", yesterday)
+        let filter_function = s:ItemList.FilterByDate("0000-00-01", yesterday)
     elseif a:filter == 'ThisWeek'
         let filter_function = s:ItemList.FilterByDate(this_week_sunday, next_week_sunday)
     elseif a:filter == 'All'
-        let filter_function = s:ItemList.FilterByDate("0000-00-00", "9999-99-99")
+        let filter_function = s:ItemList.FilterByDate("0000-00-01", "9999-99-99")
     elseif a:filter == 'Undated'
         let filter_function = s:ItemList.Filter('v:val.date == ""', 1)
     elseif a:filter == ''
         " get overdue up to tomorrow if filter is blank
-        let filter_function = s:ItemList.FilterByDate("0000-00-00", tomorrow)
+        let filter_function = s:ItemList.FilterByDate("0000-00-01", tomorrow)
     else
-        let filter_function = s:ItemList.FilterByDate("0000-00-00", "9999-99-99")
+        let filter_function = s:ItemList.FilterByDate("0000-00-01", "9999-99-99")
     endif
     return filter_function
 endfunction
@@ -1353,21 +1459,17 @@ for date_range in s:date_ranges
 
 
     if !exists(":PrintTodos" . date_range)
-        exe "command PrintTodos" . date_range . " :call s:PrintItems(\"todo_list\", [s:ItemList.FilterByNaturalLanguageDate(\"" . date_range . "\")], \"s:SortByDate\")"
+        exe "command PrintTodos" . date_range . " :call s:PrintItems(\"todo_list\", [s:ItemList.FilterByNaturalLanguageDate(\"" . date_range . "\")], \"s:SortByPriorityDate\")"
     endif
 
     if !exists(":PrintWfs" . date_range)
-        exe "command PrintWfs" . date_range . " :call s:PrintItems(\"waiting_for_list\", [s:ItemList.FilterByNaturalLanguageDate(\"" . date_range . "\")], \"s:SortByDate\")"
+        exe "command PrintWfs" . date_range . " :call s:PrintItems(\"waiting_for_list\", [s:ItemList.FilterByNaturalLanguageDate(\"" . date_range . "\")], \"s:SortByPriorityDate\")"
     endif
 
     if !exists(":PrintAppointments" . date_range)
-        exe "command PrintAppointments" . date_range . " :call s:PrintItems(\"appointment_list\", [s:ItemList.FilterByNaturalLanguageDate(\"" . date_range . "\")], \"s:SortByDate\")"
+        exe "command PrintAppointments" . date_range . " :call s:PrintItems(\"appointment_list\", [s:ItemList.FilterByNaturalLanguageDate(\"" . date_range . "\")], \"s:SortByPriorityDate\")"
     endif
 
-    if !exists(":PrintTodosByContext")
-        command -nargs=1 -complete=custom,b:VikiGTDGetContextsForAutocompletion PrintTodosByContext :call s:PrintItems("todo_list", ["v:val.context == \"" . (<q-args>) . "\""], "s:SortByDate")
-        " command PrintTodosByContext :call s:PrintItems("todo_list", [], "s:SortByContext")
-    endif
 
     if !exists(":Todos" . date_range)
         exe "command Todos" . date_range .  " " . s:OpenItemsInSp("Todos", date_range)
@@ -1383,6 +1485,11 @@ for date_range in s:date_ranges
 
 
 endfor
+
+if !exists(":PrintTodosByContext")
+    command -nargs=1 -complete=custom,b:VikiGTDGetContextsForAutocompletion PrintTodosByContext :call s:PrintItems("todo_list", ["v:val.context == \"" . (<q-args>) . "\""], "s:SortByPriorityDate")
+    " command PrintTodosByContext :call s:PrintItems("todo_list", [], "s:SortByContext")
+endif
 
 
 if !exists(":ProjectReviewDaily")
@@ -1719,7 +1826,7 @@ if exists('UnitTest')
         let new_todolist = s:TodoList.init()
         call new_todolist.ParseLines(lines)
     
-        let filtered_todos = new_todolist.Filter(s:ItemList.FilterByDate('0000-00-00', '9999-99-99'))
+        let filtered_todos = new_todolist.Filter(s:ItemList.FilterByDate('0000-00-01', '9999-99-99'))
         call self.AssertEquals(10, len(filtered_todos.items))
     
         let filtered_todos = filtered_todos.Filter(s:ItemList.FilterByDate('2010-01-01', '2010-01-31'))
@@ -1886,6 +1993,31 @@ if exists('UnitTest')
         call self.AssertEquals(1, len(new_list.items))
     endfunction
 
+    let b:test_sorting = UnitTest.init("TestSorting")
+
+    function! b:test_sorting.TestContextSort() dict
+        call s:Sorter.reset()
+        call s:Sorter.AddSortFunction(s:Sorter.SortByContext)
+        let l = ['zoo', 'yak', 'was', 'house', 'fire', 'apple']
+        call sort(l, 's:SorterSort')
+        call self.AssertEquals(['apple', 'fire', 'house', 'was', 'yak', 'zoo'], l)
+    endfunction
+
+    function! b:test_sorting.TestComplicateSort() dict
+        call s:Sorter.reset()
+        call s:Sorter.AddSortFunction(s:Sorter.SortByContext)
+        call s:Sorter.AddSortFunction(s:Sorter.SortByDate)
+        let firts = {'context': 'apple', 'date': '2010-10-01'}
+        let second = {'context': 'beets', 'date':'2010-11-01'}
+        let third = {'context': 'beets', 'date': '2010-11-02'}
+        let fourth = {'context': 'beets', 'date': ''}
+        let fifth = {'context': 'clouds', 'date': '2010-09-04'}
+        let sixth = {'context': '', 'date': '2010-07-04'}
+        let l = [third, second, fourth, fifth, sixth, firts]
+        call sort(l, 's:SorterSort')
+        call self.AssertEquals([firts, second, third, fourth, fifth, sixth], l)
+    endfunction
+
 
     " Test Suite for testing all. Buffer var so we can run from command line {{{2
     let b:test_all = TestSuite.init("TestVikiGTD")
@@ -1898,6 +2030,7 @@ if exists('UnitTest')
     call b:test_all.AddUnitTest(b:test_project)
     call b:test_all.AddUnitTest(b:test_get_item_lists)
     call b:test_all.AddUnitTest(b:test_filter)
+    call b:test_all.AddUnitTest(b:test_sorting)
     
     " Add objects to FunctionRegister {{{2
     call FunctionRegister.AddObject(s:Utils, 'Utils')
